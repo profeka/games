@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arquitecto Dimensional - Neubrutalismo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FDF4D1;
+            color: #111;
+            font-weight: 700;
+            touch-action: none;
+        }
+        .neubrutalist-panel {
+            background-color: white;
+            border: 3px solid #111;
+            box-shadow: 6px 6px 0 #111;
+        }
+        .btn {
+            border: 3px solid #111;
+            box-shadow: 4px 4px 0 #111;
+            font-weight: 900;
+            transition: all 0.1s ease-in-out;
+        }
+        .btn:hover {
+            background-color: #c4b5fd;
+        }
+        .btn:active {
+            transform: translate(4px, 4px);
+            box-shadow: 0px 0px 0 #111;
+        }
+        .level-btn {
+            border: 2px solid #111;
+            box-shadow: 3px 3px 0 #111;
+        }
+        .level-btn:active {
+             transform: translate(3px, 3px);
+             box-shadow: 0px 0px 0 #111;
+        }
+        .level-btn.active {
+            background-color: #a78bfa;
+            color: white;
+        }
+        .level-btn.completed {
+            background-color: #4ade80; /* Verde para completado */
+            color: #111;
+        }
+        .level-btn.completed.active {
+            box-shadow: 0 0 0 3px #111, 0 0 0 6px #a78bfa;
+        }
+        input[type="text"] {
+            border: 2px solid #111;
+            box-shadow: 3px 3px 0 #111;
+        }
+        input:disabled {
+            background-color: #e5e7eb;
+            cursor: not-allowed;
+        }
+
+        .feedback-animation {
+            animation: floatUp 1.5s ease-out forwards;
+        }
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-80px) scale(1.2); }
+        }
+        
+        #flame-icon {
+            animation: flicker 1.2s ease-in-out infinite;
+            transform-origin: bottom center;
+        }
+        @keyframes flicker {
+            0%, 100% { color: #f59e0b; transform: scaleY(1) rotate(-1deg); }
+            50% { color: #ef4444; transform: scaleY(1.05) rotate(1deg); }
+        }
+        #crown-icon {
+            animation: shine 2s ease-in-out infinite;
+            color: #f59e0b;
+        }
+        @keyframes shine {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px #f59e0b); }
+            50% { transform: scale(1.1); filter: drop-shadow(0 0 10px #fde047); }
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-7xl mx-auto text-center">
+        <h1 class="text-4xl md:text-5xl font-black text-black mb-2">ARQUITECTO DIMENSIONAL</h1>
+        <p class="text-gray-800 mb-8">Elimina los cubos para crear la forma <strong>INVERSA</strong>. ¡Deben rellenar los huecos!</p>
+
+        <div class="flex flex-col lg:flex-row gap-8 justify-center items-start">
+            
+            <!-- Columna Izquierda: Partida -->
+            <div class="w-full lg:w-80 flex-shrink-0 order-2 lg:order-1 flex flex-col gap-8">
+                 <div class="neubrutalist-panel p-4 text-left">
+                     <h3 class="text-2xl font-black mb-4">PARTIDA</h3>
+                     <label for="player-name" class="font-bold mb-1 block">Tu Nombre:</label>
+                     <input type="text" id="player-name" class="w-full p-2 mb-4" placeholder="Escribe tu nombre...">
+                     <label for="seed-output" class="font-bold mb-1 block">Código de Progreso:</label>
+                     <div class="flex gap-2">
+                         <input type="text" id="seed-output" class="w-full p-2 bg-gray-200" readonly>
+                         <button id="copy-seed-btn" class="btn bg-sky-300 px-3">Copiar</button>
+                     </div>
+                     <label for="seed-input" class="font-bold mb-1 mt-4 block">Cargar Código:</label>
+                     <div class="flex gap-2">
+                         <input type="text" id="seed-input" class="w-full p-2" placeholder="Pega un código aquí...">
+                         <button id="load-seed-btn" class="btn bg-emerald-300 px-3">Cargar</button>
+                     </div>
+                 </div>
+                 <div id="complete-panel" class="neubrutalist-panel p-4 text-center hidden">
+                    <h3 class="text-xl font-black mb-2">¡MAESTRÍA TOTAL!</h3>
+                    <p class="mb-4">Has completado todos los desafíos.</p>
+                    <button id="complete-button" title="¡Ver celebración!" class="btn bg-amber-400 hover:bg-yellow-400 p-3">
+                        <svg id="crown-icon" xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 256 256"><path d="M240,88a16,16,0,0,0-16-16H32A16,16,0,0,0,16,88V200a16,16,0,0,0,16,16H224a16,16,0,0,0,16-16Zm-24,104H40V96H216Zm-4-72H188a12,12,0,0,0-10.4,6L152,168l-25.6-44a12,12,0,0,0-20.8,0L80.8,168,55.2,124a12,12,0,0,0-10.4-6H20.4L40,59.2a16,16,0,0,1,28.8,14.4l-6.4,32L88,61.6a16,16,0,0,1,28.8-14.4L128,68l11.2-20.8A16,16,0,0,1,168,36l25.6,44-6.4-32a16,16,0,0,1,28.8-14.4L235.6,120Z"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Columna Central: Juego -->
+            <div class="flex-grow w-full order-1 lg:order-2">
+                <div class="neubrutalist-panel p-4 mb-4 flex justify-between items-center">
+                    <h2 id="level-display" class="text-2xl font-black">Nivel 1</h2>
+                    <div id="message-display" class="text-xl font-bold h-8 text-center flex-grow">&nbsp;</div>
+                    <button id="mute-button" class="btn bg-orange-300 p-2">
+                        <svg id="icon-unmuted" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                        <svg id="icon-muted" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+                    </button>
+                </div>
+                <div class="relative w-full aspect-square max-w-lg mx-auto neubrutalist-panel overflow-hidden">
+                    <canvas id="game-canvas"></canvas>
+                    <div id="feedback-text" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-12 text-6xl font-black" style="opacity: 0; pointer-events: none;"></div>
+                </div>
+                <div class="mt-8 flex gap-4 justify-center">
+                    <button id="check-button" class="btn bg-violet-400 text-black py-3 px-8 text-xl">COMPROBAR</button>
+                    <button id="reset-button" class="btn bg-amber-300 text-black py-3 px-8 text-xl">REINICIAR</button>
+                </div>
+            </div>
+
+            <!-- Columna Derecha: Niveles -->
+            <div class="w-full lg:w-80 flex-shrink-0 order-3 flex flex-col gap-8">
+                 <div class="neubrutalist-panel p-4">
+                     <h3 class="text-2xl font-black mb-4 text-left">NIVELES</h3>
+                     <div id="level-selector" class="grid grid-cols-5 gap-2">
+                         <!-- Botones de nivel -->
+                     </div>
+                 </div>
+                <div id="secret-panel" class="neubrutalist-panel p-4 text-center hidden">
+                    <h3 class="text-xl font-black mb-2">¡RETO SUPERADO!</h3>
+                    <p class="mb-4">Desbloquea los niveles de experto.</p>
+                    <button id="secret-button" title="Desbloquear niveles de experto" class="btn bg-red-500 hover:bg-orange-500 p-3">
+                        <svg id="flame-icon" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    
+    <div id="congrats-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+        <div class="neubrutalist-panel p-8 text-center max-w-lg bg-white">
+            <h2 class="text-4xl font-black text-amber-500 mb-4">¡ENHORABUENA!</h2>
+            <p class="text-lg mb-6">Has demostrado una visión espacial excepcional y has conquistado cada puzle. ¡Eres un auténtico Arquitecto Dimensional!</p>
+            <button id="close-congrats-btn" class="btn bg-violet-400 text-black py-3 px-8 text-xl">CERRAR</button>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Declaraciones de elementos del DOM ---
+            const canvas = document.getElementById('game-canvas'), ctx = canvas.getContext('2d');
+            const levelDisplay = document.getElementById('level-display'), messageDisplay = document.getElementById('message-display'), checkButton = document.getElementById('check-button'), resetButton = document.getElementById('reset-button'), feedbackText = document.getElementById('feedback-text'), levelSelector = document.getElementById('level-selector'), playerNameInput = document.getElementById('player-name'), seedOutput = document.getElementById('seed-output'), copySeedBtn = document.getElementById('copy-seed-btn'), seedInput = document.getElementById('seed-input'), loadSeedBtn = document.getElementById('load-seed-btn'), muteButton = document.getElementById('mute-button'), iconMuted = document.getElementById('icon-muted'), iconUnmuted = document.getElementById('icon-unmuted'), secretPanel = document.getElementById('secret-panel'), secretButton = document.getElementById('secret-button'), completePanel = document.getElementById('complete-panel'), completeButton = document.getElementById('complete-button'), congratsModal = document.getElementById('congrats-modal'), closeCongratsBtn = document.getElementById('close-congrats-btn');
+
+            // --- Variables de estado del juego ---
+            let CUBE_WIDTH, CUBE_HEIGHT, TOP_GRID_Y, BOTTOM_GRID_Y, currentLevel = 0, playerGrid = [], moldGrid = [], isAnimating = false, playerName = '', completedLevels = [], nameLocked = false;
+            
+            // --- Variables de estado de sonido ---
+            let synthsReady = false, isMuted = false, clickSound, successSound, errorSound, loadSound, unlockSound, victorySound;
+            const clickNotes = ["A4", "C5", "E5", "G5"];
+
+            const animationState = { active: false, startTime: 0, duration: 800, startY: 0, endY: 0 };
+            const errorAnimationState = { active: false, startTime: 0, duration: 1500, soundPlayed: false };
+            const tutorialState = { active: false, startTime: 0, duration: 3000, cursorX: 0, cursorY: 0, pulseOpacity: 0 };
+
+            // --- Definición de Niveles ---
+            const initialLevels = [
+                { name: "Tutorial", gridSize: 3, molde: [[0,0,0],[0,1,0],[0,0,0]], tutorialTarget: {r: 1, c: 1} },
+                { name: "Línea", gridSize: 3, molde: [[0,0,0],[1,1,1],[0,0,0]] },
+                { name: "Letra L", gridSize: 3, molde: [[1,0,0],[1,0,0],[1,1,0]] },
+                { name: "Letra T", gridSize: 3, molde: [[1,1,1],[0,1,0],[0,1,0]] },
+                { name: "Cruz", gridSize: 3, molde: [[0,1,0],[1,1,1],[0,1,0]] },
+                { name: "Diagonal", gridSize: 3, molde: [[1,0,0],[0,1,0],[0,0,1]] },
+                { name: "Agujero", gridSize: 3, molde: [[1,1,1],[1,0,1],[1,1,1]] },
+                { name: "Esquinas", gridSize: 3, molde: [[1,0,1],[0,0,0],[1,0,1]] },
+                { name: "Gusano", gridSize: 3, molde: [[1,1,0],[0,1,1],[0,0,0]] },
+                { name: "Letra U", gridSize: 3, molde: [[1,0,1],[1,1,1],[0,0,0]] },
+                { name: "Letra P", gridSize: 3, molde: [[1,1,1],[1,1,1],[1,0,0]] },
+                { name: "Anillo", gridSize: 3, molde: [[0,1,0],[1,0,1],[0,1,0]] },
+                { name: "Dientes", gridSize: 3, molde: [[1,0,1],[0,1,0],[1,0,1]] },
+                { name: "Pasillo", gridSize: 3, molde: [[1,0,1],[1,0,1],[1,0,1]] },
+                { name: "Asimétrico", gridSize: 3, molde: [[1,0,1],[0,1,1],[1,1,0]] },
+                { name: "Letra H", gridSize: 3, molde: [[1,0,1],[1,1,1],[1,0,1]] },
+                { name: "Letra C", gridSize: 3, molde: [[1,1,1],[1,0,0],[1,1,1]] },
+                { name: "Serpiente", gridSize: 3, molde: [[1,1,0],[0,1,0],[0,1,1]] },
+                { name: "C Islas", gridSize: 3, molde: [[1,0,1],[0,0,0],[1,0,0]] },
+                { name: "Celebración", gridSize: 3, molde: [[1,0,1],[0,1,0],[1,1,0]] },
+                { name: "4x4", gridSize: 4, molde: [[0,0,0,0],[0,1,1,0],[0,1,1,0],[0,0,0,0]] },
+                { name: "Línea Larga", gridSize: 4, molde: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]] },
+                { name: "Gran L", gridSize: 4, molde: [[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,1,1,1]] },
+                { name: "Gran Cruz", gridSize: 4, molde: [[0,1,1,0],[1,1,1,1],[1,1,1,1],[0,1,1,0]] },
+                { name: "Marco", gridSize: 4, molde: [[1,1,1,1],[1,0,0,1],[1,0,0,1],[1,1,1,1]] },
+                { name: "Doble L", gridSize: 4, molde: [[1,1,0,0],[1,0,0,0],[0,0,0,1],[0,0,1,1]] },
+                { name: "Dientes 4x4", gridSize: 4, molde: [[1,0,1,0],[0,1,0,1],[1,0,1,0],[0,1,0,1]] },
+                { name: "Serpiente Larga", gridSize: 4, molde: [[1,1,0,0],[0,1,1,0],[0,0,1,1],[0,0,0,0]] },
+                { name: "Ventana", gridSize: 4, molde: [[1,0,1,0],[0,0,0,0],[1,0,1,0],[0,0,0,0]] },
+                { name: "Final Boss", gridSize: 4, molde: [[1,1,0,1],[1,0,1,0],[0,1,0,1],[1,0,1,1]] }
+            ];
+            const hardLevels = [
+                { name: "Espiral", gridSize: 4, molde: [[1,1,1,1],[0,0,0,1],[1,0,0,1],[1,1,1,1]] },
+                { name: "Islas 4x4", gridSize: 4, molde: [[1,0,1,0],[0,0,0,0],[1,0,1,0],[0,0,0,0]] },
+                { name: "Flecha", gridSize: 4, molde: [[0,1,0,0],[1,1,1,0],[0,1,0,0],[0,1,0,0]] },
+                { name: "Letra I", gridSize: 4, molde: [[1,0,0,1],[1,1,1,1],[1,0,0,1],[0,0,0,0]] },
+                { name: "Alien", gridSize: 4, molde: [[0,1,1,0],[1,0,0,1],[1,1,1,1],[0,1,1,0]] },
+                { name: "Conector", gridSize: 4, molde: [[1,0,0,0],[1,1,0,0],[0,1,1,0],[0,0,1,1]] },
+                { name: "Zigzag", gridSize: 4, molde: [[1,0,1,0],[1,1,1,1],[0,1,0,1],[0,0,0,0]] },
+                { name: "Valle", gridSize: 4, molde: [[1,1,0,1],[1,0,0,1],[1,0,1,1],[1,0,0,1]] },
+                { name: "Bandera", gridSize: 4, molde: [[1,0,1,1],[1,1,1,1],[0,1,0,0],[0,1,0,0]] },
+                { name: "Caos", gridSize: 4, molde: [[1,0,1,1],[0,1,1,0],[1,1,0,1],[0,1,0,0]] },
+                { name: "5x5", gridSize: 5, molde: [[0,0,0,0,0],[0,1,1,1,0],[0,1,0,1,0],[0,1,1,1,0],[0,0,0,0,0]] },
+                { name: "Gran X", gridSize: 5, molde: [[1,0,0,0,1],[0,1,0,1,0],[0,0,1,0,0],[0,1,0,1,0],[1,0,0,0,1]] },
+                { name: "Laberinto 5x5", gridSize: 5, molde: [[1,1,1,0,1],[1,0,1,0,1],[1,0,0,0,1],[1,1,1,0,1],[0,0,0,0,1]] },
+                { name: "Ondas", gridSize: 5, molde: [[1,0,1,0,1],[0,1,0,1,0],[1,0,1,0,1],[0,1,0,1,0],[1,0,1,0,1]] },
+                { name: "El Ojo", gridSize: 5, molde: [[0,1,1,1,0],[1,0,0,0,1],[1,0,1,0,1],[1,0,0,0,1],[0,1,1,1,0]] },
+                { name: "Fortaleza", gridSize: 5, molde: [[1,1,0,1,1],[1,0,0,0,1],[0,0,1,0,0],[1,0,0,0,1],[1,1,0,1,1]] },
+                { name: "Letra S", gridSize: 5, molde: [[0,1,1,1,0],[1,0,0,0,0],[0,1,1,1,0],[0,0,0,0,1],[0,1,1,1,0]] },
+                { name: "Invasor", gridSize: 5, molde: [[0,0,1,0,0],[0,1,1,1,0],[1,1,0,1,1],[1,0,1,0,1],[0,1,0,1,0]] },
+                { name: "Circuito", gridSize: 5, molde: [[1,1,1,1,1],[1,0,0,0,1],[1,0,1,0,1],[1,0,1,1,1],[1,1,1,0,0]] },
+                { name: "Galaxia Rota", gridSize: 5, molde: [[1,0,1,0,0],[0,0,0,1,1],[1,0,1,0,1],[0,1,0,0,0],[1,0,1,0,1]] }
+            ];
+            let levels = [...initialLevels];
+
+            // --- Sistema de Sonido ---
+            function initAudio() { if (synthsReady) return; clickSound = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.05, release: 0.1 } }).toDestination(); successSound = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 0.2 } }).toDestination(); errorSound = new Tone.Synth({ oscillator: { type: 'square' }, envelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.3 } }).toDestination(); loadSound = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.05, release: 0.1 } }).toDestination(); unlockSound = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'sawtooth' }, envelope: { attack: 0.01, decay: 0.4, sustain: 0.2, release: 0.4 } }).toDestination(); victorySound = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'triangle8' }, envelope: { attack: 0.02, decay: 0.8, sustain: 0.5, release: 0.8 } }).toDestination(); synthsReady = true; }
+            function toggleMute() { isMuted = !isMuted; Tone.Master.mute = isMuted; iconMuted.classList.toggle('hidden', !isMuted); iconUnmuted.classList.toggle('hidden', isMuted); }
+
+            // --- Lógica de Partida y Desbloqueo ---
+            function saveGameData() { const data = { name: playerName, completed: completedLevels, unlocked: levels.length > initialLevels.length, nameLocked: nameLocked }; localStorage.setItem('cuboEncajeProgress', JSON.stringify(data)); generateSeed(); }
+            function loadGameData() { const data = JSON.parse(localStorage.getItem('cuboEncajeProgress')); if (data) { playerName = data.name || ''; if (data.unlocked) { levels = [...initialLevels, ...hardLevels]; } completedLevels = data.completed || Array(levels.length).fill(false); nameLocked = data.nameLocked || false; } else { completedLevels = Array(levels.length).fill(false); } playerNameInput.value = playerName; updateUI(); }
+            function generateSeed() { const unlockedFlag = levels.length > initialLevels.length ? 'U' : 'L'; const progressString = completedLevels.map(completed => { return completed ? (Math.floor(Math.random() * 4) + 6).toString() : (Math.floor(Math.random() * 6)).toString(); }).join(''); const dataString = `${playerName}::${progressString}::${unlockedFlag}`; try { seedOutput.value = btoa(dataString); } catch (e) { seedOutput.value = 'Error al generar código.'; } }
+            function loadSeed() { if (!synthsReady) { Tone.start(); initAudio(); } const seed = seedInput.value.trim(); if (!seed) return; try { const decodedString = atob(seed); const [name, progressString, unlockedFlag] = decodedString.split('::'); if (name !== undefined && progressString) { if (unlockedFlag === 'U' && levels.length === initialLevels.length) { levels.push(...hardLevels); } playerName = name; playerNameInput.value = playerName; completedLevels = progressString.split('').map(digit => parseInt(digit, 10) >= 6); nameLocked = !!playerName; saveGameData(); updateUI(); loadLevel(currentLevel); messageDisplay.textContent = 'Partida cargada'; setTimeout(() => { messageDisplay.textContent = "\u00A0"; }, 1500); } else { throw new Error('Formato de código inválido.'); } } catch (e) { messageDisplay.textContent = 'Código inválido'; setTimeout(() => { messageDisplay.textContent = "\u00A0"; }, 1500); } seedInput.value = ''; }
+            function copySeed() { seedOutput.select(); document.execCommand('copy'); messageDisplay.textContent = "¡Copiado!"; setTimeout(() => { messageDisplay.textContent = "\u00A0"; }, 1500); }
+            function checkForUnlock() { if (levels.length > initialLevels.length) { secretPanel.classList.add('hidden'); return; } const allNormalCompleted = completedLevels.slice(0, initialLevels.length).every(c => c === true); if (allNormalCompleted) { secretPanel.classList.remove('hidden'); } }
+            function checkForGameComplete() { if (levels.length < initialLevels.length + hardLevels.length) return; const allCompleted = completedLevels.every(c => c === true); if (allCompleted) { secretPanel.classList.add('hidden'); completePanel.classList.remove('hidden'); } }
+            function unlockHardLevels() { if (!synthsReady) { Tone.start(); initAudio(); } if (levels.length > initialLevels.length) return; unlockSound.triggerAttackRelease(["C4", "E4", "G4", "C5"], "2n", Tone.now()); levels.push(...hardLevels); const newCompleted = Array(hardLevels.length).fill(false); completedLevels.push(...newCompleted); saveGameData(); createLevelSelector(); secretPanel.classList.add('hidden'); }
+            function updateNameInputState() { playerNameInput.disabled = nameLocked; }
+
+            // --- Lógica de UI ---
+            function updateUI() { createLevelSelector(); generateSeed(); checkForUnlock(); checkForGameComplete(); updateNameInputState(); }
+            function createLevelSelector() { levelSelector.innerHTML = ''; levels.forEach((level, index) => { const btn = document.createElement('button'); btn.textContent = index + 1; btn.className = 'level-btn btn p-2 text-lg'; if (completedLevels[index]) btn.classList.add('completed'); if (index === currentLevel) btn.classList.add('active'); btn.addEventListener('click', () => { loadLevel(index); }); levelSelector.appendChild(btn); }); }
+            function updateActiveLevelButton() { const buttons = levelSelector.querySelectorAll('.level-btn'); buttons.forEach((btn, index) => { btn.classList.toggle('active', index === currentLevel); if(completedLevels[index]) btn.classList.add('completed'); }); }
+            function showFeedback(text, color) { feedbackText.textContent = text; feedbackText.style.color = color; feedbackText.classList.add('feedback-animation'); setTimeout(() => { feedbackText.classList.remove('feedback-animation'); feedbackText.style.opacity = '0'; }, 1500); }
+
+            // --- Lógica Principal del Juego ---
+            function checkSolution() {
+                if (isAnimating) return;
+                if (!synthsReady) { Tone.start(); initAudio(); }
+                const gridSize = levels[currentLevel].gridSize; let match = true;
+                for (let r = 0; r < gridSize; r++) { for (let c = 0; c < gridSize; c++) { if (playerGrid[r][c] + moldGrid[r][c] !== 1) { match = false; break; } } if (!match) break; }
+                if (match) {
+                    messageDisplay.textContent = "¡PERFECTO!"; messageDisplay.style.color = '#16a34a'; showFeedback('✅', '#16a34a');
+                    successSound.triggerAttackRelease(["C5", "E5", "G5"], "8n", Tone.now());
+                    if (!completedLevels[currentLevel]) {
+                        if (playerName && !nameLocked) {
+                            nameLocked = true;
+                        }
+                        completedLevels[currentLevel] = true;
+                        saveGameData(); 
+                        createLevelSelector(); 
+                        updateNameInputState();
+                    }
+                    startFallAnimation();
+                } else {
+                    messageDisplay.textContent = "INCORRECTO"; messageDisplay.style.color = '#dc2626'; showFeedback('❌', '#dc2626');
+                    startErrorAnimation();
+                }
+            }
+            function loadLevel(levelIndex) { if (levelIndex >= levels.length) levelIndex = 0; currentLevel = levelIndex; if (synthsReady) { loadSound.triggerAttackRelease("C4", "8n"); } levelDisplay.textContent = `Nivel ${currentLevel + 1}: ${levels[currentLevel].name}`; moldGrid = levels[currentLevel].molde; resetPlayerGrid(); updateActiveLevelButton(); if (currentLevel === 0 && !completedLevels[0]) { isAnimating = true; tutorialState.active = true; tutorialState.startTime = performance.now(); requestAnimationFrame(tutorialAnimationLoop); } }
+            function handleClick(e) {
+                if (!synthsReady) { Tone.start(); initAudio(); }
+                if (isAnimating && (currentLevel !== 0 || completedLevels[0])) return;
+                const rect = canvas.getBoundingClientRect(), mouseX = e.clientX - rect.left, mouseY = e.clientY - rect.top;
+                const cube = getClickedCube(mouseX, mouseY);
+                if (cube) {
+                    const randomNote = clickNotes[Math.floor(Math.random() * clickNotes.length)];
+                    clickSound.triggerAttackRelease(randomNote, "8n");
+                    if (currentLevel === 0) {
+                        const target = levels[0].tutorialTarget;
+                        if (cube.r === target.r && cube.c === target.c) { tutorialState.active = false; isAnimating = false; playerGrid[cube.r][cube.c] = 0; drawGame(); }
+                    } else {
+                        playerGrid[cube.r][cube.c] = 0;
+                        drawGame();
+                    }
+                }
+            }
+            
+            // --- Lógica de Dibujado y Animación ---
+            function setupCanvas() { const gridSize = levels[currentLevel].gridSize; const container = canvas.parentElement; const size = Math.min(container.clientWidth, container.clientHeight, 600); canvas.width = size; canvas.height = size; CUBE_WIDTH = canvas.width / (gridSize + 6); CUBE_HEIGHT = CUBE_WIDTH / 2; const gridVisualHeight = (gridSize - 1) * CUBE_HEIGHT + (CUBE_HEIGHT * 2); const gapVisualHeight = 4 * (CUBE_HEIGHT * 2); const totalContentHeight = gridVisualHeight * 2 + gapVisualHeight; const marginY = (canvas.height - totalContentHeight) / 2; TOP_GRID_Y = marginY; BOTTOM_GRID_Y = marginY + gridVisualHeight + gapVisualHeight; drawGame(); }
+            function resetPlayerGrid() { const gridSize = levels[currentLevel].gridSize; playerGrid = Array(gridSize).fill(0).map(() => Array(gridSize).fill(1)); isAnimating = false; tutorialState.active = false; checkButton.disabled = false; resetButton.disabled = false; messageDisplay.textContent = "\u00A0"; setupCanvas(); }
+            function drawCube(row, col, baseY, color, gridSize) { const gridOriginX = canvas.width / 2 - (gridSize * CUBE_WIDTH) / 2 + ((gridSize-1) * CUBE_WIDTH/2); const x = gridOriginX + (col - row) * (CUBE_WIDTH / 2); const y = baseY + (col + row) * (CUBE_HEIGHT / 2); ctx.strokeStyle = '#111'; ctx.lineWidth = 3; ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x, y + CUBE_HEIGHT / 2); ctx.lineTo(x + CUBE_WIDTH / 2, y); ctx.lineTo(x + CUBE_WIDTH, y + CUBE_HEIGHT / 2); ctx.lineTo(x + CUBE_WIDTH / 2, y + CUBE_HEIGHT); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.fillStyle = shadeColor(color, -0.15); ctx.beginPath(); ctx.moveTo(x, y + CUBE_HEIGHT / 2); ctx.lineTo(x + CUBE_WIDTH / 2, y + CUBE_HEIGHT); ctx.lineTo(x + CUBE_WIDTH / 2, y + CUBE_HEIGHT + CUBE_HEIGHT); ctx.lineTo(x, y + CUBE_HEIGHT / 2 + CUBE_HEIGHT); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.fillStyle = shadeColor(color, -0.30); ctx.beginPath(); ctx.moveTo(x + CUBE_WIDTH / 2, y + CUBE_HEIGHT); ctx.lineTo(x + CUBE_WIDTH, y + CUBE_HEIGHT / 2); ctx.lineTo(x + CUBE_WIDTH, y + CUBE_HEIGHT / 2 + CUBE_HEIGHT); ctx.lineTo(x + CUBE_WIDTH / 2, y + CUBE_HEIGHT + CUBE_HEIGHT); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+            function shadeColor(color, percent) { let f=parseInt(color.slice(1),16),t=percent<0?0:255,p=percent<0?percent*-1:percent,R=f>>16,G=f>>8&0x00FF,B=f&0x0000FF; return "#"+(0x1000000+(Math.round((t-R)*p)+R)*0x10000+(Math.round((t-G)*p)+G)*0x100+(Math.round((t-B)*p)+B)).toString(16).slice(1); }
+            function drawProjectionGuides() { const gridSize = levels[currentLevel].gridSize; const gridOriginX = canvas.width / 2 - (gridSize * CUBE_WIDTH) / 2 + ((gridSize - 1) * CUBE_WIDTH / 2); ctx.save(); ctx.strokeStyle = '#aaa'; ctx.lineWidth = 2; ctx.globalAlpha = 0.25; ctx.setLineDash([4, 4]); for (let r = 0; r < gridSize; r++) { for (let c = 0; c < gridSize; c++) { if (playerGrid[r][c] === 1) { const x = gridOriginX + (c - r) * (CUBE_WIDTH / 2); const y = BOTTOM_GRID_Y + (c + r) * (CUBE_HEIGHT / 2); ctx.beginPath(); ctx.moveTo(x, y + CUBE_HEIGHT / 2 + CUBE_HEIGHT); ctx.lineTo(x + CUBE_WIDTH / 2, y + CUBE_HEIGHT); ctx.lineTo(x + CUBE_WIDTH, y + CUBE_HEIGHT / 2 + CUBE_HEIGHT); ctx.lineTo(x + CUBE_WIDTH / 2, y + CUBE_HEIGHT + CUBE_HEIGHT); ctx.closePath(); ctx.stroke(); } } } ctx.restore(); }
+            function drawVerticalGuideLines() { const gridSize = levels[currentLevel].gridSize; const gridOriginX = canvas.width / 2 - (gridSize * CUBE_WIDTH) / 2 + ((gridSize-1) * CUBE_WIDTH/2); ctx.save(); ctx.strokeStyle = '#888'; ctx.lineWidth = 2; ctx.globalAlpha = 0.2; ctx.setLineDash([5, 10]); for (let r = 0; r < gridSize; r++) { for (let c = 0; c < gridSize; c++) { if (moldGrid[r][c] === 0 && playerGrid[r][c] === 1) { const x = gridOriginX + (c - r) * (CUBE_WIDTH / 2); const startY = TOP_GRID_Y + (c + r) * (CUBE_HEIGHT / 2); const endY = BOTTOM_GRID_Y + (c + r) * (CUBE_HEIGHT / 2); ctx.beginPath(); ctx.moveTo(x + CUBE_WIDTH / 2, startY + CUBE_HEIGHT * 1.5); ctx.lineTo(x + CUBE_WIDTH / 2, endY + CUBE_HEIGHT / 2); ctx.stroke(); } } } ctx.restore(); }
+            function drawGrid(grid, baseY, color) { const gridSize = grid.length; for (let r = 0; r < gridSize; r++) { for (let c = 0; c < gridSize; c++) { if (grid[r][c] === 1) drawCube(r, c, baseY, color, gridSize); } } }
+            function drawGame() { ctx.clearRect(0, 0, canvas.width, canvas.height); if (!isAnimating) { drawProjectionGuides(); drawVerticalGuideLines(); } drawGrid(moldGrid, BOTTOM_GRID_Y, '#d1d5db'); drawGrid(playerGrid, TOP_GRID_Y, '#a78bfa'); }
+            function getClickedCube(mouseX, mouseY) { const gridSize = levels[currentLevel].gridSize; const gridOriginX = canvas.width / 2 - (gridSize * CUBE_WIDTH) / 2 + ((gridSize-1) * CUBE_WIDTH/2); for (let r = gridSize - 1; r >= 0; r--) { for (let c = 0; c < gridSize; c++) { if (playerGrid[r][c] === 1) { const x = gridOriginX + (c - r) * (CUBE_WIDTH / 2); const y = TOP_GRID_Y + (c + r) * (CUBE_HEIGHT / 2); const dx = Math.abs(mouseX - (x + CUBE_WIDTH / 2)); const dy = Math.abs(mouseY - (y + CUBE_HEIGHT / 2)); if (dx / (CUBE_WIDTH / 2) + dy / (CUBE_HEIGHT / 2) <= 1) return { r, c }; } } } return null; }
+            function startFallAnimation() { isAnimating = true; checkButton.disabled = true; resetButton.disabled = true; animationState.active = true; animationState.startTime = performance.now(); animationState.startY = TOP_GRID_Y; animationState.endY = BOTTOM_GRID_Y; requestAnimationFrame(fallAnimationLoop); }
+            function fallAnimationLoop(timestamp) { const elapsed = timestamp - animationState.startTime; let progress = elapsed / animationState.duration; if (progress >= 1) { progress = 1; animationState.active = false; } const easeOutCubic = t => (--t) * t * t + 1; const currentY = animationState.startY + (animationState.endY - animationState.startY) * easeOutCubic(progress); ctx.clearRect(0, 0, canvas.width, canvas.height); const gridSize = levels[currentLevel].gridSize; const cubesToDraw = []; for (let r = 0; r < gridSize; r++) { for (let c = 0; c < gridSize; c++) { if (playerGrid[r][c] === 1) cubesToDraw.push({ r, c, y: currentY, color: '#a78bfa', gridSize }); if (moldGrid[r][c] === 1) cubesToDraw.push({ r, c, y: BOTTOM_GRID_Y, color: '#a78bfa', gridSize }); } } cubesToDraw.sort((a, b) => (a.r + a.c) - (b.r + b.c)); for (const cube of cubesToDraw) drawCube(cube.r, cube.c, cube.y, cube.color, cube.gridSize); if (animationState.active) { requestAnimationFrame(fallAnimationLoop); } else { setTimeout(() => loadLevel(currentLevel + 1), 500); } }
+            function startErrorAnimation() { isAnimating = true; checkButton.disabled = true; resetButton.disabled = true; errorAnimationState.active = true; errorAnimationState.soundPlayed = false; errorAnimationState.startTime = performance.now(); requestAnimationFrame(errorAnimationLoop); }
+            function errorAnimationLoop(timestamp) { if (!errorAnimationState.active) return; const elapsed = timestamp - errorAnimationState.startTime; let progress = elapsed / errorAnimationState.duration; let currentY; const fallDuration = errorAnimationState.duration * 0.4; const bounceDuration = errorAnimationState.duration * 0.6; const collisionPointY = BOTTOM_GRID_Y - CUBE_HEIGHT * 2; if (elapsed < fallDuration) { const fallProgress = elapsed / fallDuration; const easeInCubic = t => t*t*t; currentY = TOP_GRID_Y + (collisionPointY - TOP_GRID_Y) * easeInCubic(fallProgress); } else { if (!errorAnimationState.soundPlayed) { errorSound.triggerAttackRelease("C3", "4n", Tone.now()); errorAnimationState.soundPlayed = true; } const bounceProgress = (elapsed - fallDuration) / bounceDuration; const easeOutCubic = t => (--t)*t*t+1; currentY = collisionPointY - (collisionPointY - TOP_GRID_Y) * easeOutCubic(bounceProgress); } ctx.clearRect(0, 0, canvas.width, canvas.height); drawGrid(moldGrid, BOTTOM_GRID_Y, '#d1d5db'); drawGrid(playerGrid, currentY, '#ef4444'); if (progress >= 1) { errorAnimationState.active = false; setTimeout(() => resetPlayerGrid(), 100); } else { requestAnimationFrame(errorAnimationLoop); } }
+            function tutorialAnimationLoop(timestamp) { if (!tutorialState.active) return; const gridSize = levels[currentLevel].gridSize; const elapsed = (timestamp - tutorialState.startTime) % tutorialState.duration; const progress = elapsed / tutorialState.duration; const target = levels[0].tutorialTarget; const gridOriginX = canvas.width / 2 - (gridSize * CUBE_WIDTH) / 2 + ((gridSize-1) * CUBE_WIDTH/2); const targetX = gridOriginX + (target.c - target.r) * (CUBE_WIDTH / 2) + CUBE_WIDTH / 2; const targetY = TOP_GRID_Y + (target.c + target.r) * (CUBE_HEIGHT / 2) + CUBE_HEIGHT / 2; if (progress < 0.5) { const moveProgress = progress * 2; tutorialState.cursorX = -50 + (targetX + 50) * moveProgress; tutorialState.cursorY = targetY; } else if (progress < 0.7) { tutorialState.cursorX = targetX; tutorialState.cursorY = targetY; } else { tutorialState.cursorX = -50; } tutorialState.pulseOpacity = Math.abs(Math.sin(progress * Math.PI * 4)); drawGame(); ctx.save(); ctx.globalAlpha = tutorialState.pulseOpacity * 0.5; drawCube(target.r, target.c, TOP_GRID_Y, '#fbbf24', gridSize); ctx.restore(); drawCursor(tutorialState.cursorX, tutorialState.cursorY); requestAnimationFrame(tutorialAnimationLoop); }
+            function drawCursor(x, y) { ctx.save(); ctx.globalAlpha = 0.85; ctx.fillStyle = 'white'; ctx.strokeStyle = 'black'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 20); ctx.lineTo(x + 5, y + 15); ctx.lineTo(x + 10, y + 25); ctx.lineTo(x + 15, y + 20); ctx.lineTo(x + 10, y + 12); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore(); }
+            
+            // --- Inicialización y Event Listeners ---
+            function showVictory() {
+                if (!synthsReady) { Tone.start(); initAudio(); }
+                victorySound.triggerAttackRelease(["C5", "E5", "G5", "C6"], "1n", Tone.now());
+                congratsModal.classList.remove('hidden');
+            }
+
+            playerNameInput.addEventListener('input', (e) => { playerName = e.target.value; saveGameData(); });
+            copySeedBtn.addEventListener('click', copySeed);
+            loadSeedBtn.addEventListener('click', loadSeed);
+            muteButton.addEventListener('click', toggleMute);
+            secretButton.addEventListener('click', unlockHardLevels);
+            completeButton.addEventListener('click', showVictory);
+            closeCongratsBtn.addEventListener('click', () => congratsModal.classList.add('hidden'));
+
+            window.addEventListener('resize', setupCanvas);
+            canvas.addEventListener('click', handleClick);
+            checkButton.addEventListener('click', checkSolution);
+            resetButton.addEventListener('click', () => { if (!synthsReady) { Tone.start(); initAudio(); } loadLevel(currentLevel); });
+            
+            loadGameData();
+            loadLevel(currentLevel);
+        });
+    </script>
+</body>
+</html>
+
