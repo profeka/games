@@ -3,19 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panda Escape</title>
+    <title>Panda Escape - Profeka Games</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
             touch-action: manipulation;
-            background-color: #0e7490; /* cyan-700, para el mar */
+            background-color: #0e7490; /* Azul marino para el mar */
+            color: #f5f5f4; /* Texto claro para contraste */
         }
         .hex polygon {
             stroke: #4d7c0f; /* lime-700 */
-            stroke-width: 1.5;
+            stroke-width: 2.5;
             transition: all 0.2s ease-in-out;
         }
         .hex:not(.fence):not(.panda):hover polygon {
@@ -60,71 +62,56 @@
             animation: panda-jump 0.4s ease-in-out;
         }
         .modal-container {
-            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+            transition: opacity 0.3s ease-in-out;
         }
         .game-board-bg {
             fill: #65a30d; /* lime-600 */
             filter: url(#drop-shadow);
         }
-        .island {
-            position: absolute;
-            z-index: -1;
-            opacity: 0.9;
-        }
 
-        /* --- Estilo Neubrutalista --- */
-        .neubrutalist-button {
-            border: 4px solid black;
-            box-shadow: 5px 5px 0 0 black;
-            transition: all 0.15s ease-in-out;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        /* --- Estilo Neubrutalista Adaptado --- */
+        .btn {
+            border: 3px solid #111;
+            box-shadow: 4px 4px 0 #111;
+            font-weight: 900;
+            transition: all 0.1s ease-in-out;
         }
-        .neubrutalist-button:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: 7px 7px 0 0 black;
+        .btn:hover {
+            background-color: #c4b5fd;
         }
-        .neubrutalist-button:active {
-            transform: translate(2px, 2px);
-            box-shadow: 3px 3px 0 0 black;
+        .btn:active {
+            transform: translate(4px, 4px);
+            box-shadow: 0px 0px 0 #111;
         }
-        .neubrutalist-button:disabled {
-            background-color: #78716c; /* stone-500 */
-            color: #d6d3d1; /* stone-300 */
+        .btn:disabled {
+            background-color: #e5e7eb;
+            color: #9ca3af;
             cursor: not-allowed;
-            opacity: 0.8;
             box-shadow: none;
             transform: none;
-            border-color: #44403c; /* stone-700 */
         }
-        .neubrutalist-modal {
-            border: 4px solid black;
-            box-shadow: 8px 8px 0 0 black;
-        }
-        .neubrutalist-title {
-            font-weight: 800;
-            text-shadow: 3px 3px 0px #f59e0b, -3px -3px 0px #0ea5e9; /* amber-500, sky-500 */
-            -webkit-text-stroke: 2px black;
-             color: white;
+        .neubrutalist-panel {
+            background-color: white;
+            border: 3px solid #111;
+            box-shadow: 6px 6px 0 #111;
         }
     </style>
 </head>
-<body class="text-stone-100 flex flex-col items-center justify-center min-h-screen p-4 overflow-hidden">
+<body class="flex flex-col items-center justify-center min-h-screen p-4 overflow-hidden">
 
-    <div id="decorative-islands"></div>
-
-    <div class="w-full max-w-2xl text-center mb-4 z-10">
-        <h1 class="text-6xl neubrutalist-title">Panda Escape</h1>
+    <div class="relative w-full max-w-2xl text-center mb-4 z-10">
+        <a href="profeka_games.html" title="Volver a la página principal" class="absolute top-0 left-0 btn bg-sky-300 p-3 m-2 lg:m-0 z-20">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z"></path></svg>
+        </a>
+        <h1 class="text-6xl font-black text-white">Panda Escape</h1>
         <div class="flex justify-center items-center gap-4 mt-4">
-            <p id="level-display" class="text-2xl font-bold text-yellow-300" style="text-shadow: 2px 2px 0px rgba(0,0,0,0.8);"></p>
-            <button id="undo-button" class="neubrutalist-button bg-sky-400 text-black py-2 px-4">
+            <p id="level-display" class="text-2xl font-black"></p>
+            <button id="undo-button" class="btn bg-sky-300 text-black py-2 px-4 text-lg">
                 Deshacer (5)
             </button>
-            <button id="mute-button" class="neubrutalist-button bg-pink-400 text-black p-2 h-full aspect-square">
-                <svg id="sound-on-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-                <svg id="sound-off-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+            <button id="mute-button" class="btn bg-orange-300 text-black p-3 aspect-square">
+                <svg id="sound-on-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                <svg id="sound-off-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="hidden"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
             </button>
         </div>
     </div>
@@ -132,33 +119,27 @@
     <div id="game-container" class="relative flex items-center justify-center w-full max-w-md aspect-square z-10">
         <svg id="hex-grid" class="w-full h-full overflow-visible"></svg>
         <div id="panda-container">
-            <!-- Panda SVG -->
             <svg id="panda-svg" viewBox="0 0 100 100">
                 <g>
-                    <!-- Orejas -->
-                    <circle cx="20" cy="20" r="12" fill="#27272a"/>
-                    <circle cx="80" cy="20" r="12" fill="#27272a"/>
-                    <!-- Parches de los ojos -->
-                    <ellipse cx="35" cy="45" rx="14" ry="18" fill="#27272a" transform="rotate(-20 35 45)"/>
-                    <ellipse cx="65" cy="45" rx="14" ry="18" fill="#27272a" transform="rotate(20 65 45)"/>
-                    <!-- Cabeza -->
-                    <circle cx="50" cy="50" r="35" fill="white"/>
-                    <!-- Ojos -->
+                    <circle cx="20" cy="20" r="12" fill="#111"/>
+                    <circle cx="80" cy="20" r="12" fill="#111"/>
+                    <ellipse cx="35" cy="45" rx="14" ry="18" fill="#111" transform="rotate(-20 35 45)"/>
+                    <ellipse cx="65" cy="45" rx="14" ry="18" fill="#111" transform="rotate(20 65 45)"/>
+                    <circle cx="50" cy="50" r="35" fill="white" stroke="#111" stroke-width="3"/>
                     <circle cx="38" cy="48" r="4" fill="white"/>
                     <circle cx="62" cy="48" r="4" fill="white"/>
-                    <!-- Nariz -->
-                    <circle cx="50" cy="60" r="5" fill="#27272a"/>
+                    <circle cx="50" cy="60" r="5" fill="#111"/>
                 </g>
             </svg>
         </div>
     </div>
 
     <!-- Modal for game over -->
-    <div id="modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center opacity-0 pointer-events-none modal-container z-50">
-        <div class="neubrutalist-modal bg-stone-200 text-stone-900 p-8 text-center w-80 transform scale-95 modal-container">
-            <h2 id="modal-title" class="text-3xl font-bold mb-4"></h2>
-            <p id="modal-text" class="text-stone-700 mb-6"></p>
-            <button id="reset-button" class="neubrutalist-button bg-yellow-400 text-black py-3 px-6 text-lg">
+    <div id="modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center opacity-0 pointer-events-none modal-container z-50 p-4">
+        <div class="neubrutalist-panel bg-white text-black p-8 text-center w-full max-w-sm">
+            <h2 id="modal-title" class="text-3xl font-black mb-4"></h2>
+            <p id="modal-text" class="text-gray-800 mb-6"></p>
+            <button id="reset-button" class="btn bg-amber-300 text-black py-3 px-6 text-lg">
                 Jugar de Nuevo
             </button>
         </div>
@@ -167,12 +148,13 @@
     <svg width="0" height="0" style="position:absolute;">
         <defs>
             <filter id="drop-shadow" x="-50%" y="-50%" width="200%" height="200%">
-                <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#27272a" flood-opacity="0.5"/>
+                <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#111" flood-opacity="0.4"/>
             </filter>
         </defs>
     </svg>
 
     <script>
+        // --- El resto del script del juego del panda va aquí ---
         const GRID_SIZE = 4;
         const svgNS = "http://www.w3.org/2000/svg";
         const svg = document.getElementById('hex-grid');
@@ -183,7 +165,6 @@
         const modalText = document.getElementById('modal-text');
         const resetButton = document.getElementById('reset-button');
         const levelDisplay = document.getElementById('level-display');
-        const islandContainer = document.getElementById('decorative-islands');
         const undoButton = document.getElementById('undo-button');
         const muteButton = document.getElementById('mute-button');
         const soundOnIcon = document.getElementById('sound-on-icon');
@@ -198,7 +179,6 @@
         let undosLeft = 5;
         let sounds = {};
 
-        // --- Sound Setup ---
         function setupSounds() {
             sounds.place = new Tone.MembraneSynth({ octaves: 4, pitchDecay: 0.1, volume: -10 }).toDestination();
             sounds.jump = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 0.1 }, volume: -10 }).toDestination();
@@ -209,37 +189,17 @@
 
         function playSound(soundName) {
             if (Tone.context.state !== 'running') return;
-
             switch(soundName) {
-                case 'place':
-                    sounds.place.triggerAttackRelease("C2", "8n");
-                    break;
-                case 'jump':
-                    sounds.jump.triggerAttackRelease("G4", "16n");
-                    break;
-                case 'win':
-                    sounds.win.triggerAttackRelease(["C4", "E4", "G4", "C5"], "8n", Tone.now());
-                    break;
-                case 'lose':
-                    sounds.lose.triggerAttackRelease(["C4", "D#4", "G4"], "8n", Tone.now());
-                    break;
-                case 'undo':
-                    sounds.undo.frequency.setValueAtTime("C5", Tone.now());
-                    sounds.undo.frequency.rampTo("G4", Tone.now() + 0.2);
-                    sounds.undo.triggerAttackRelease("16n");
-                    break;
+                case 'place': sounds.place.triggerAttackRelease("C2", "8n"); break;
+                case 'jump': sounds.jump.triggerAttackRelease("G4", "16n"); break;
+                case 'win': sounds.win.triggerAttackRelease(["C4", "E4", "G4", "C5"], "8n", Tone.now()); break;
+                case 'lose': sounds.lose.triggerAttackRelease(["C4", "D#4", "G4"], "8n", Tone.now()); break;
+                case 'undo': sounds.undo.frequency.setValueAtTime("C5", Tone.now()); sounds.undo.frequency.rampTo("G4", Tone.now() + 0.2); sounds.undo.triggerAttackRelease("16n"); break;
             }
         }
         
-        // --- Game Logic ---
-        const axialDirections = [
-            { q: 1, r: 0 }, { q: 1, r: -1 }, { q: 0, r: -1 },
-            { q: -1, r: 0 }, { q: -1, r: 1 }, { q: 0, r: 1 }
-        ];
-
-        function getAxialNeighbors(q, r) {
-            return axialDirections.map(dir => ({ q: q + dir.q, r: r + dir.r }));
-        }
+        const axialDirections = [ { q: 1, r: 0 }, { q: 1, r: -1 }, { q: 0, r: -1 }, { q: -1, r: 0 }, { q: -1, r: 1 }, { q: 0, r: 1 } ];
+        function getAxialNeighbors(q, r) { return axialDirections.map(dir => ({ q: q + dir.q, r: r + dir.r })); }
         
         function axialToPixel(q, r) {
             const originX = gameContainer.clientWidth / 2;
@@ -263,7 +223,7 @@
                 points.push(`${center.x + hexSize * Math.cos(angle)},${center.y + hexSize * Math.sin(angle)}`);
             }
             polygon.setAttribute('points', points.join(' '));
-            polygon.setAttribute('fill', '#84cc16');
+            polygon.setAttribute('fill', '#84cc16'); // lime-500
             g.appendChild(polygon);
 
             const stump = document.createElementNS(svgNS, 'g');
@@ -273,15 +233,15 @@
             trunk.setAttribute('y', center.y - hexSize * 0.25);
             trunk.setAttribute('width', hexSize * 0.6);
             trunk.setAttribute('height', hexSize * 0.5);
-            trunk.setAttribute('fill', '#78350f');
+            trunk.setAttribute('fill', '#78350f'); // amber-900
             trunk.setAttribute('rx', 2);
             const top = document.createElementNS(svgNS, 'ellipse');
             top.setAttribute('cx', center.x);
             top.setAttribute('cy', center.y - hexSize * 0.25);
             top.setAttribute('rx', hexSize * 0.3);
             top.setAttribute('ry', hexSize * 0.15);
-            top.setAttribute('fill', '#fcd34d');
-            top.setAttribute('stroke', '#b45309');
+            top.setAttribute('fill', '#fcd34d'); // amber-300
+            top.setAttribute('stroke', '#b45309'); // amber-700
             top.setAttribute('stroke-width', 1.5);
             stump.appendChild(trunk);
             stump.appendChild(top);
@@ -291,24 +251,6 @@
             return g;
         }
 
-        function createDecorativeIslands() {
-            islandContainer.innerHTML = '';
-            const positions = [
-                { top: '5%', left: '5%', w: '150px', h: '120px', r: -20, p: '100,0 200,100 100,200 0,100' },
-                { top: '70%', left: '85%', w: '120px', h: '100px', r: 30, p: '100,0 150,80 100,150 50,80' },
-                { top: '80%', left: '2%', w: '200px', h: '150px', r: 10, p: '150,0 200,100 100,200 0,100' },
-                { top: '10%', left: '80%', w: '100px', h: '80px', r: -10, p: '80,0 120,50 80,100 40,50' },
-            ];
-            positions.forEach(pos => {
-                const island = document.createElement('div');
-                island.classList.add('island');
-                island.style.top = pos.top;
-                island.style.left = pos.left;
-                island.innerHTML = `<svg width="${pos.w}" height="${pos.h}" viewBox="0 0 200 200"><polygon points="${pos.p}" fill="#f59e0b" style="transform: rotate(${pos.r}deg); transform-origin: center;"/></svg>`;
-                islandContainer.appendChild(island);
-            });
-        }
-        
         function initGame() {
             gameOver = false;
             gridState.clear();
@@ -346,7 +288,7 @@
             
             pandaPos = { q: 0, r: 0 };
 
-            const initialFences = Math.max(8, Math.floor(GRID_SIZE * 4) - Math.floor(currentLevel * 2));
+            const initialFences = Math.max(8, Math.floor(GRID_SIZE * 4) - Math.floor(currentLevel * 1.5));
             const allCoords = Array.from(gridState.values());
             for (let i = 0; i < initialFences; i++) {
                 if (allCoords.length === 0) break;
@@ -358,7 +300,6 @@
             
             updateDisplay();
             hideModal();
-            createDecorativeIslands();
         }
         
         function onHexClick(event) {
@@ -370,10 +311,7 @@
                 return;
             }
 
-            const currentState = {
-                pandaPos: { ...pandaPos },
-                fencePlaced: { q: state.q, r: state.r }
-            };
+            const currentState = { pandaPos: { ...pandaPos }, fencePlaced: { q: state.q, r: state.r } };
             moveHistory.push(currentState);
             
             state.isFence = true;
@@ -411,26 +349,17 @@
             }
         }
         
-        function isExit(q, r) {
-            const distance = (Math.abs(q) + Math.abs(r) + Math.abs(-q - r)) / 2;
-            return distance === GRID_SIZE;
-        }
+        function isExit(q, r) { const distance = (Math.abs(q) + Math.abs(r) + Math.abs(-q - r)) / 2; return distance === GRID_SIZE; }
 
         function findPathToExit() {
             const queue = [{ q: pandaPos.q, r: pandaPos.r, path: [] }];
             const visited = new Set([`${pandaPos.q},${pandaPos.r}`]);
-
             while (queue.length > 0) {
                 const { q, r, path } = queue.shift();
-
-                if (isExit(q, r)) {
-                    return path[0];
-                }
-
+                if (isExit(q, r)) { return path[0]; }
                 for (const neighbor of getAxialNeighbors(q, r)) {
                     const key = `${neighbor.q},${neighbor.r}`;
                     const state = gridState.get(key);
-
                     if (state && !state.isFence && !visited.has(key)) {
                         visited.add(key);
                         const newPath = [...path, neighbor];
@@ -456,7 +385,6 @@
         
         function undoMove() {
             if (gameOver || undosLeft <= 0 || moveHistory.length === 0) return;
-
             const lastMove = moveHistory.pop();
             
             const fenceState = gridState.get(`${lastMove.fencePlaced.q},${lastMove.fencePlaced.r}`);
@@ -480,13 +408,9 @@
             modalText.textContent = text;
             resetButton.textContent = buttonText;
             modal.classList.remove('opacity-0', 'pointer-events-none');
-            modal.firstElementChild.classList.remove('scale-95');
         }
 
-        function hideModal() {
-            modal.classList.add('opacity-0', 'pointer-events-none');
-            modal.firstElementChild.classList.add('scale-95');
-        }
+        function hideModal() { modal.classList.add('opacity-0', 'pointer-events-none'); }
         
         function toggleMute() {
             Tone.Destination.mute = !Tone.Destination.mute;
@@ -494,7 +418,6 @@
             soundOffIcon.classList.toggle('hidden');
         }
 
-        // --- Event Listeners & Init ---
         resetButton.addEventListener('click', initGame);
         undoButton.addEventListener('click', undoMove);
         muteButton.addEventListener('click', toggleMute);
@@ -502,7 +425,6 @@
         document.body.addEventListener('click', async () => {
             if (Tone.context.state !== 'running') {
                 await Tone.start();
-                console.log('Audio context started');
             }
         }, { once: true });
 
