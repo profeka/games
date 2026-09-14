@@ -1,0 +1,1614 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Timeline Informática: 1º Bachillerato</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tone.js for Web Audio synthesizers -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+  <!-- Google Fonts: Space Grotesk & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700;800&family=Space+Grotesk:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Space Grotesk"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          },
+          colors: {
+            neo: {
+              bg: '#fdfbf7',
+              yellow: '#facc15',
+              green: '#4ade80',
+              pink: '#f472b6',
+              cyan: '#38bdf8',
+              orange: '#fb923c',
+              purple: '#c084fc',
+              red: '#f87171',
+              dark: '#121212'
+            }
+          },
+          boxShadow: {
+            'neo-sm': '2px 2px 0px 0px #000',
+            'neo': '4px 4px 0px 0px #000',
+            'neo-lg': '6px 6px 0px 0px #000',
+            'neo-xl': '8px 8px 0px 0px #000'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbar in high-contrast Neubrutalist style */
+    .timeline-scroll::-webkit-scrollbar {
+      height: 14px;
+    }
+    .timeline-scroll::-webkit-scrollbar-track {
+      background: #f1ede4;
+      border: 3px solid #000;
+      border-radius: 9999px;
+    }
+    .timeline-scroll::-webkit-scrollbar-thumb {
+      background: #facc15;
+      border: 3px solid #000;
+      border-radius: 9999px;
+    }
+    .timeline-scroll::-webkit-scrollbar-thumb:hover {
+      background: #fb923c;
+    }
+
+    @keyframes popBounce {
+      0% { transform: scale(0.8); opacity: 0; }
+      70% { transform: scale(1.05); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .animate-pop {
+      animation: popBounce 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    @keyframes shakeHard {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-8px); }
+      40%, 80% { transform: translateX(8px); }
+    }
+    .animate-shake {
+      animation: shakeHard 0.35s ease-in-out;
+    }
+
+    /* Neubrutalist button press effects */
+    .btn-neo {
+      transition: all 0.1s ease;
+    }
+    .btn-neo:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0px 0px #000;
+    }
+    .btn-neo:active {
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0px 0px #000;
+    }
+  </style>
+</head>
+<body class="bg-neo-bg text-black min-h-screen flex flex-col font-sans selection:bg-neo-yellow selection:text-black antialiased border-[4px] border-black">
+
+  <!-- Top Navigation & Scoreboard Bar -->
+  <header class="bg-neo-yellow border-b-[4px] border-black px-4 py-3 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <!-- Title & Subject Badge -->
+      <div class="flex items-center space-x-3">
+        <div class="w-11 h-11 bg-white border-[3px] border-black rounded-lg shadow-neo-sm flex items-center justify-center font-mono font-black text-2xl">
+          💾
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xl sm:text-2xl font-black tracking-tight text-black uppercase">
+              Timeline Informática
+            </h1>
+            <span class="bg-black text-white text-[10px] sm:text-xs font-mono font-bold px-2 py-0.5 rounded border border-black uppercase tracking-wider">
+              1º Bach
+            </span>
+          </div>
+          <p class="text-xs font-bold text-black/80">Ciencias de la Computación • Currícular</p>
+        </div>
+      </div>
+
+      <!-- Game Indicators (Lives, Score, Streak, Sound, Encyclopedia Lock) -->
+      <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
+        <!-- Streak / Combo -->
+        <div class="flex items-center space-x-1.5 px-3 py-1.5 bg-white rounded-lg border-[3px] border-black shadow-neo-sm text-xs sm:text-sm font-bold">
+          <span class="text-amber-600">⚡ Racha:</span>
+          <span id="stat-streak" class="font-mono font-black text-black text-base">0</span>
+        </div>
+
+        <!-- Score Placed -->
+        <div class="flex items-center space-x-1.5 px-3 py-1.5 bg-white rounded-lg border-[3px] border-black shadow-neo-sm text-xs sm:text-sm font-bold">
+          <span class="text-emerald-700">🎯 Aciertos:</span>
+          <span id="stat-score" class="font-mono font-black text-black text-base">0</span>
+        </div>
+
+        <!-- Lives Left -->
+        <div class="flex items-center space-x-1 px-3 py-1.5 bg-white rounded-lg border-[3px] border-black shadow-neo-sm text-xs sm:text-sm font-bold">
+          <span class="text-rose-600">❤️ Vidas:</span>
+          <span id="stat-lives" class="font-mono text-base tracking-tighter">❤️❤️❤️</span>
+        </div>
+
+        <!-- Sound Toggle -->
+        <button id="btn-sound" title="Sonido On/Off" class="p-2 bg-white hover:bg-slate-100 rounded-lg border-[3px] border-black shadow-neo-sm btn-neo" aria-label="Silenciar sonido">
+          <svg id="icon-sound-on" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+          </svg>
+          <svg id="icon-sound-off" class="w-5 h-5 hidden text-rose-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z M17 14l4-4m0 4l-4-4" />
+          </svg>
+        </button>
+
+        <!-- Protected Encyclopedia Trigger -->
+        <button id="btn-open-encyclopedia" class="px-3 py-1.5 bg-neo-cyan hover:bg-sky-300 text-black rounded-lg text-xs sm:text-sm font-black border-[3px] border-black shadow-neo-sm btn-neo flex items-center space-x-1.5">
+          <span id="encyclopedia-lock-icon">🔒</span>
+          <span id="encyclopedia-btn-label">Enciclopedia</span>
+        </button>
+
+        <!-- Restart Button -->
+        <button id="btn-restart" class="p-2 bg-neo-orange hover:bg-amber-400 rounded-lg border-[3px] border-black shadow-neo-sm btn-neo font-black" title="Reiniciar partida">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Action instruction banner -->
+  <div id="instruction-bar" class="bg-white border-b-[4px] border-black px-4 py-2.5 font-mono text-xs sm:text-sm font-bold text-center transition-all">
+    <span id="instruction-text" class="text-black">
+      👉 <strong class="underline decoration-black decoration-2">Paso 1:</strong> Selecciona una carta de tu baraja abajo. Luego pulsa el hueco <span class="bg-neo-yellow px-1.5 py-0.5 border-2 border-black rounded shadow-neo-sm">[AQUÍ +]</span> de la línea donde creas que ocurrió.
+    </span>
+  </div>
+
+  <!-- Main Game Canvas Container -->
+  <main class="flex-1 flex flex-col justify-between max-w-7xl w-full mx-auto p-4 sm:p-6 gap-6">
+
+    <!-- Timeline Zone Header -->
+    <section class="flex flex-col space-y-3">
+      <div class="flex items-center justify-between flex-wrap gap-2">
+        <div class="flex items-center space-x-2">
+          <div class="w-4 h-4 bg-neo-green border-2 border-black rounded-full shadow-neo-sm animate-pulse"></div>
+          <h2 class="text-base sm:text-lg font-black uppercase tracking-tight text-black">
+            Línea Cronológica (<span id="timeline-count">1</span> en mesa)
+          </h2>
+        </div>
+        <div class="bg-neo-purple text-black text-xs font-mono font-bold px-2.5 py-1 border-[2px] border-black rounded shadow-neo-sm">
+          ⬅ Más antiguo ··· Más reciente ➡
+        </div>
+      </div>
+
+      <!-- Horizontal Timeline Neubrutalist Track -->
+      <div class="relative bg-white border-[4px] border-black rounded-2xl p-4 sm:p-6 shadow-neo-lg min-h-[290px] flex items-center overflow-hidden group/timeline">
+        <!-- Retro timeline center stripe -->
+        <div class="absolute left-4 right-4 top-1/2 -translate-y-1/2 h-2.5 bg-black z-0 rounded-full"></div>
+
+        <!-- Lateral Scroll Button Left -->
+        <button id="btn-scroll-timeline-left" type="button" title="Desplazar línea hacia el pasado" aria-label="Desplazar a la izquierda" class="absolute left-2.5 sm:left-4 top-1/2 -translate-y-1/2 z-30 w-11 h-11 sm:w-13 sm:h-13 bg-neo-yellow hover:bg-amber-300 active:translate-x-0.5 active:translate-y-0.5 rounded-xl border-[3px] border-black shadow-neo flex items-center justify-center font-mono font-black text-lg sm:text-xl btn-neo transition-all select-none cursor-pointer">
+          ◀
+        </button>
+
+        <!-- Lateral Scroll Button Right -->
+        <button id="btn-scroll-timeline-right" type="button" title="Desplazar línea hacia el futuro" aria-label="Desplazar a la derecha" class="absolute right-2.5 sm:right-4 top-1/2 -translate-y-1/2 z-30 w-11 h-11 sm:w-13 sm:h-13 bg-neo-yellow hover:bg-amber-300 active:translate-x-0.5 active:translate-y-0.5 rounded-xl border-[3px] border-black shadow-neo flex items-center justify-center font-mono font-black text-lg sm:text-xl btn-neo transition-all select-none cursor-pointer">
+          ▶
+        </button>
+
+        <!-- Scrollable cards container -->
+        <div id="timeline-container" class="timeline-scroll flex items-center space-x-4 overflow-x-auto w-full py-4 px-14 sm:px-16 z-10 scroll-smooth cursor-grab active:cursor-grabbing select-none">
+          <!-- Dynamically populated slots and cards will render here -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Player's Hand Zone -->
+    <section class="flex flex-col space-y-3 bg-white border-[4px] border-black p-4 sm:p-6 rounded-2xl shadow-neo-lg">
+      <div class="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h3 class="text-lg font-black uppercase text-black flex items-center gap-2">
+            <span>🃏 Tu Baraja en Mano</span>
+            <span id="deck-remaining-badge" class="bg-neo-yellow text-black text-xs font-mono font-bold px-2.5 py-0.5 border-[2px] border-black rounded-md shadow-neo-sm">
+              Cargando baraja...
+            </span>
+          </h3>
+          <p class="text-xs font-semibold text-slate-700 mt-0.5">
+            ¡Las fechas están ocultas! Elige el hito histórico que sepas ubicar con mayor seguridad.
+          </p>
+        </div>
+
+        <!-- Quick Help indicator -->
+        <div id="selection-indicator" class="text-xs font-mono font-bold px-3 py-1.5 rounded-lg bg-[#f1ede4] text-black border-[2px] border-black shadow-neo-sm flex items-center gap-2">
+          <span>Ninguna carta seleccionada</span>
+        </div>
+      </div>
+
+      <!-- Hand Cards Grid / Row -->
+      <div id="hand-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-1">
+        <!-- Player hand cards will be rendered here -->
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL: Game Over / Victory Screen -->
+  <div id="modal-result" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-neo-bg border-[4px] border-black rounded-3xl max-w-md w-full p-6 text-center shadow-neo-xl animate-pop relative">
+      <div id="modal-result-icon" class="w-20 h-20 mx-auto rounded-2xl bg-neo-yellow border-[3px] border-black shadow-neo flex items-center justify-center text-4xl mb-4 font-mono">
+        🏆
+      </div>
+      <h3 id="modal-result-title" class="text-2xl sm:text-3xl font-black uppercase text-black mb-2">¡Partida Terminada!</h3>
+      <p id="modal-result-msg" class="text-slate-800 text-sm font-semibold mb-6 leading-relaxed">
+        Has completado la sesión de juego.
+      </p>
+
+      <div class="bg-white rounded-xl p-4 border-[3px] border-black shadow-neo mb-6 flex justify-around text-center">
+        <div>
+          <span class="block text-xs font-mono font-bold uppercase tracking-wider text-slate-600">Aciertos</span>
+          <span id="modal-score" class="text-3xl font-black font-mono text-emerald-600">12</span>
+        </div>
+        <div class="w-[3px] bg-black"></div>
+        <div>
+          <span class="block text-xs font-mono font-bold uppercase tracking-wider text-slate-600">Mejor Racha</span>
+          <span id="modal-max-streak" class="text-3xl font-black font-mono text-amber-500">5</span>
+        </div>
+        <div class="w-[3px] bg-black"></div>
+        <div>
+          <span class="block text-xs font-mono font-bold uppercase tracking-wider text-slate-600">En Mesa</span>
+          <span id="modal-total" class="text-3xl font-black font-mono text-neo-purple">13</span>
+        </div>
+      </div>
+
+      <div class="flex gap-3">
+        <button id="modal-btn-restart" class="flex-1 py-3 px-4 bg-neo-green hover:bg-emerald-400 text-black font-black uppercase rounded-xl border-[3px] border-black shadow-neo btn-neo">
+          Jugar de Nuevo
+        </button>
+        <button id="modal-btn-close" class="py-3 px-4 bg-white hover:bg-slate-100 text-black font-bold uppercase rounded-xl border-[3px] border-black shadow-neo btn-neo">
+          Ver Mesa
+        </button>
+      </div>
+
+      <div class="mt-4 pt-3 border-t-[3px] border-black">
+        <button id="modal-btn-open-assignment" class="w-full py-3 px-4 bg-neo-cyan hover:bg-sky-300 text-black font-black uppercase rounded-xl border-[3px] border-black shadow-neo btn-neo flex items-center justify-center gap-2 text-sm sm:text-base">
+          <span>🎲</span>
+          <span>Sortear Temas de Trabajo (Modo Parejas)</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Classroom Research Assignment & Reroll System -->
+  <div id="modal-assignment" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-neo-bg border-[4px] border-black rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-neo-xl animate-pop">
+      <!-- Modal Header -->
+      <div class="p-4 sm:p-5 border-b-[4px] border-black bg-neo-yellow flex items-center justify-between">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-2xl sm:text-3xl">🎓</span>
+            <h3 class="text-lg sm:text-2xl font-black uppercase text-black">
+              Sorteo de Temas: Memoria de Investigación
+            </h3>
+          </div>
+          <p class="text-xs font-bold text-black/80 mt-0.5">
+            4 hitos extraídos de las cartas consolidadas en vuestra línea temporal de la mesa.
+          </p>
+        </div>
+        <button id="btn-close-assignment" class="w-9 h-9 bg-neo-red hover:bg-rose-500 rounded-lg border-[3px] border-black shadow-neo-sm font-mono font-black text-black flex items-center justify-center text-base">
+          ✕
+        </button>
+      </div>
+
+      <!-- Control Bar: Student Names & Reroll Tokens -->
+      <div class="p-4 bg-white border-b-[3px] border-black flex flex-wrap gap-3 items-center justify-between">
+        <div class="flex items-center gap-2 flex-1 min-w-[260px]">
+          <label for="assignment-pair-names" class="text-xs font-mono font-black uppercase text-black shrink-0">Pareja:</label>
+          <input id="assignment-pair-names" type="text" placeholder="Ej: Lucía García y Marcos Pérez" class="w-full bg-amber-50/60 border-[2px] border-black rounded-lg px-3 py-1.5 font-mono text-xs sm:text-sm font-bold text-black focus:outline-none focus:bg-white focus:shadow-neo-sm" />
+        </div>
+
+        <!-- Reroll & Manual Pick Tokens Available -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <div class="flex items-center gap-1.5 bg-neo-pink px-3 py-1.5 rounded-xl border-[2px] border-black shadow-neo-sm" title="Reroll aleatorio (Racha > 5 o cada 4 aciertos)">
+            <span class="text-xs font-black uppercase text-black">🎲 Rerolls:</span>
+            <span id="assignment-reroll-count" class="font-mono text-base font-black px-2 py-0.5 bg-white rounded border border-black text-black">0</span>
+          </div>
+          <div class="flex items-center gap-1.5 bg-neo-yellow px-3 py-1.5 rounded-xl border-[2px] border-black shadow-neo-sm" title="Elegir tema a dedo del pool (Racha > 10 o Aciertos > 12)">
+            <span class="text-xs font-black uppercase text-black">👆 A Dedo:</span>
+            <span id="assignment-manual-count" class="font-mono text-base font-black px-2 py-0.5 bg-white rounded border border-black text-black">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Explanation banner of how rerolls were earned -->
+      <div class="px-4 py-2 bg-slate-100 border-b-[2px] border-black/40 text-[11px] font-mono font-bold text-slate-700 flex flex-wrap justify-between gap-2">
+        <span id="assignment-reroll-explanation">Cargando tokens de repetición y selección...</span>
+        <span id="assignment-pool-count" class="text-black">Pool disponible en mesa: 0 hitos</span>
+      </div>
+
+      <!-- Cards Grid of the 4 Assigned Milestones -->
+      <div class="p-4 sm:p-5 overflow-y-auto flex-1 bg-[#f4efe6]">
+        <div id="assignment-cards-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- 4 drawn cards rendered dynamically -->
+        </div>
+      </div>
+
+      <!-- Footer: Copy Summary & Confirm -->
+      <div class="p-4 bg-white border-t-[4px] border-black flex flex-wrap items-center justify-between gap-3">
+        <p class="text-xs font-semibold text-slate-600">
+          Haz clic en <strong>🔍 Ver Ficha</strong> para ver los detalles. Puedes usar <strong>🎲 Reroll</strong> o <strong>👆 Elegir a Dedo</strong>.
+        </p>
+        <div class="flex items-center gap-2 w-full sm:w-auto">
+          <button id="btn-copy-assignment" class="flex-1 sm:flex-none px-4 py-2.5 bg-neo-green hover:bg-emerald-400 text-black font-black uppercase text-xs sm:text-sm rounded-xl border-[3px] border-black shadow-neo btn-neo flex items-center justify-center gap-2">
+            <span>📋</span>
+            <span>Copiar Asignación</span>
+          </button>
+          <button id="btn-done-assignment" class="px-4 py-2.5 bg-white hover:bg-slate-100 text-black font-bold uppercase text-xs sm:text-sm rounded-xl border-[3px] border-black shadow-neo btn-neo">
+            Listo
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Manual Card Picker (Elegir a Dedo) -->
+  <div id="modal-pick-manual" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-neo-bg border-[4px] border-black rounded-3xl max-w-3xl w-full max-h-[88vh] flex flex-col shadow-neo-xl animate-pop">
+      <div class="p-4 bg-neo-yellow border-b-[4px] border-black flex items-center justify-between">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-2xl">👆</span>
+            <h3 class="text-lg sm:text-xl font-black uppercase text-black">
+              Elegir Tema a Dedo (Comodín)
+            </h3>
+          </div>
+          <p class="text-xs font-bold text-black/80 mt-0.5">
+            Selecciona libremente cualquiera de los hitos que habéis colocado con éxito en la mesa.
+          </p>
+        </div>
+        <button id="btn-close-pick-manual" class="w-8 h-8 bg-neo-red rounded-lg border-[2px] border-black font-mono font-black text-black hover:bg-rose-500">
+          ✕
+        </button>
+      </div>
+      <div id="pick-manual-cards-list" class="p-4 sm:p-5 overflow-y-auto flex-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 bg-[#f8f5ee]">
+        <!-- Selectable cards rendered dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Detailed Card Dossier (Ficha Técnica y Curricular) -->
+  <div id="modal-card-detail" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-neo-bg border-[4px] border-black rounded-3xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-neo-xl animate-pop">
+      <!-- Detail Header -->
+      <div id="detail-header-bar" class="p-4 sm:p-5 border-b-[4px] border-black bg-neo-yellow flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div id="detail-icon" class="w-12 h-12 rounded-xl bg-white border-[3px] border-black shadow-neo-sm flex items-center justify-center text-2xl font-mono">
+            💾
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span id="detail-year" class="text-lg sm:text-xl font-mono font-black bg-black text-white px-2 py-0.5 rounded border border-black">
+                1946
+              </span>
+              <span id="detail-category-badge" class="text-xs font-mono font-bold uppercase px-2 py-0.5 rounded border-[2px] border-black bg-neo-cyan">
+                Hardware
+              </span>
+            </div>
+            <h3 id="detail-title" class="text-lg sm:text-xl font-black text-black mt-1 leading-tight">
+              Título del Hito
+            </h3>
+            <p id="detail-author" class="text-xs font-bold text-slate-700 truncate"></p>
+          </div>
+        </div>
+        <button id="btn-close-detail" class="w-9 h-9 bg-neo-red hover:bg-rose-500 rounded-lg border-[3px] border-black shadow-neo-sm font-mono font-black text-black flex items-center justify-center text-base">
+          ✕
+        </button>
+      </div>
+
+      <!-- Detail Body -->
+      <div class="p-5 overflow-y-auto flex-1 space-y-4 text-slate-900 bg-white">
+        <!-- Overview -->
+        <div class="bg-amber-50/60 p-3.5 rounded-xl border-[2px] border-black shadow-neo-sm">
+          <h4 class="text-xs font-mono font-black uppercase text-black mb-1 flex items-center gap-1.5">
+            <span>📌</span> <span>Descripción General</span>
+          </h4>
+          <p id="detail-desc" class="text-xs sm:text-sm font-semibold leading-relaxed text-slate-800"></p>
+        </div>
+
+        <!-- Technical & Historical Context -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div class="p-3.5 rounded-xl border-[2px] border-black bg-[#faf8f4] shadow-neo-sm">
+            <h4 class="text-xs font-mono font-black uppercase text-black mb-1 flex items-center gap-1.5">
+              <span>⚙️</span> <span>Principio Técnico</span>
+            </h4>
+            <p id="detail-technical" class="text-xs font-medium leading-relaxed text-slate-700"></p>
+          </div>
+          <div class="p-3.5 rounded-xl border-[2px] border-black bg-[#faf8f4] shadow-neo-sm">
+            <h4 class="text-xs font-mono font-black uppercase text-black mb-1 flex items-center gap-1.5">
+              <span>🏛️</span> <span>Contexto Histórico</span>
+            </h4>
+            <p id="detail-context" class="text-xs font-medium leading-relaxed text-slate-700"></p>
+          </div>
+        </div>
+
+        <!-- Modern Impact & Research tips for Block D -->
+        <div class="p-3.5 rounded-xl border-[2px] border-black bg-neo-purple/20 shadow-neo-sm">
+          <h4 class="text-xs font-mono font-black uppercase text-black mb-1 flex items-center gap-1.5">
+            <span>🚀</span> <span>Impacto en la Computación Actual</span>
+          </h4>
+          <p id="detail-impact" class="text-xs font-medium leading-relaxed text-slate-800"></p>
+        </div>
+
+        <div class="p-3.5 rounded-xl border-[2px] border-black bg-neo-green/20 shadow-neo-sm">
+          <h4 class="text-xs font-mono font-black uppercase text-black mb-1 flex items-center gap-1.5">
+            <span>📝</span> <span>Puntos Clave para la Memoria Técnica (1º Bach)</span>
+          </h4>
+          <ul id="detail-tips" class="text-xs font-medium space-y-1 text-slate-800 list-disc list-inside"></ul>
+        </div>
+      </div>
+
+      <!-- Detail Footer -->
+      <div class="p-3.5 bg-slate-100 border-t-[3px] border-black flex justify-between items-center">
+        <span class="text-[11px] font-mono font-bold text-slate-600">Ciencias de la Computación • Bloques A y D</span>
+        <button id="btn-detail-ok" class="px-5 py-2 bg-neo-yellow hover:bg-amber-300 text-black font-black uppercase text-xs rounded-xl border-[2px] border-black shadow-neo-sm btn-neo">
+          Entendido
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Password Gate for Encyclopedia (Anti-cheating) -->
+  <div id="modal-password" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border-[4px] border-black rounded-3xl max-w-md w-full p-6 shadow-neo-xl animate-pop relative">
+      <div class="flex items-center justify-between pb-3 border-b-[3px] border-black mb-4">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">🔐</span>
+          <h3 class="text-xl font-black uppercase text-black">Acceso Profesorado</h3>
+        </div>
+        <button id="btn-close-password-modal" class="w-8 h-8 rounded-lg bg-neo-red border-[2px] border-black flex items-center justify-center font-black text-black hover:bg-rose-500">✕</button>
+      </div>
+
+      <p class="text-xs sm:text-sm font-semibold text-slate-800 mb-4">
+        Para evitar trampas durante la partida, la enciclopedia con todos los años está bloqueada con contraseña.
+      </p>
+
+      <div class="bg-neo-yellow border-[3px] border-black rounded-xl p-3 mb-4 text-xs font-mono font-bold">
+        💡 <strong>Pista para el docente:</strong> Apellido en minúsculas de la matemática británica considerada la primera programadora de la historia.
+      </div>
+
+      <form id="form-unlock-encyclopedia" class="space-y-4">
+        <div>
+          <label for="password-input" class="block text-xs font-mono font-bold uppercase text-black mb-1">Introduce la Contraseña:</label>
+          <input id="password-input" type="password" placeholder="Contraseña..." autocomplete="off" class="w-full bg-white border-[3px] border-black rounded-xl px-3 py-2 text-sm font-mono font-bold text-black focus:outline-none focus:bg-amber-50 focus:shadow-neo-sm" />
+        </div>
+        <p id="password-error-msg" class="text-xs font-mono font-bold text-neo-red hidden">
+          ⛔ Contraseña incorrecta. ¡Nada de trampas en clase!
+        </p>
+        <div class="flex gap-2 pt-2">
+          <button type="submit" class="flex-1 py-2.5 bg-neo-green hover:bg-emerald-400 text-black font-black uppercase rounded-xl border-[3px] border-black shadow-neo btn-neo text-sm">
+            Desbloquear
+          </button>
+          <button type="button" id="btn-cancel-password" class="py-2.5 px-4 bg-slate-200 hover:bg-slate-300 text-black font-bold uppercase rounded-xl border-[3px] border-black shadow-neo btn-neo text-sm">
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Complete Encyclopedia of Milestones (48 Curricular Cards) -->
+  <div id="modal-encyclopedia" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-neo-bg border-[4px] border-black rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-neo-xl animate-pop">
+      <!-- Modal Header -->
+      <div class="p-5 border-b-[4px] border-black bg-neo-yellow flex items-center justify-between">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-2xl">📚</span>
+            <h3 class="text-xl font-black uppercase text-black">
+              Enciclopedia Cronológica Completa
+            </h3>
+            <span class="bg-black text-white text-[10px] font-mono font-bold px-2 py-0.5 rounded border border-black uppercase">
+              1º Bach
+            </span>
+          </div>
+          <p class="text-xs font-bold text-black/80 mt-1">60 hitos y avances curriculares consolidados por año (5000 a.C. a 2024).</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btn-relock-encyclopedia" title="Volver a bloquear la enciclopedia" class="px-2.5 py-1 text-xs font-mono font-bold bg-white hover:bg-slate-100 rounded-lg border-[2px] border-black shadow-neo-sm btn-neo">
+            🔒 Bloquear
+          </button>
+          <button id="btn-close-encyclopedia" class="w-9 h-9 bg-neo-red hover:bg-rose-500 rounded-lg border-[3px] border-black shadow-neo-sm font-mono font-black text-black flex items-center justify-center">
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- Search & Filter bar inside modal -->
+      <div class="px-5 py-3 bg-white border-b-[3px] border-black flex flex-wrap gap-2 items-center justify-between">
+        <input id="encyclopedia-search" type="text" placeholder="Buscar por inventor, hito, año, categoría..." class="bg-white border-[3px] border-black text-black font-mono text-xs sm:text-sm rounded-xl px-3 py-2 w-full sm:w-80 focus:outline-none focus:bg-amber-50 focus:shadow-neo-sm placeholder:text-slate-500 font-bold" />
+        <span id="encyclopedia-count" class="text-xs font-mono font-bold bg-neo-cyan px-2.5 py-1 border-[2px] border-black rounded shadow-neo-sm">
+          Mostrando 48 hitos
+        </span>
+      </div>
+
+      <!-- Scrollable list of cards -->
+      <div id="encyclopedia-list" class="p-5 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 bg-[#f6f2ea]">
+        <!-- Dynamically injected -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Audio State & Tone.js synthesizers
+    let soundEnabled = true;
+    let synthSuccess, synthFail, synthFanfare;
+
+    function initAudio() {
+      try {
+        if (!synthSuccess) {
+          synthSuccess = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: 'triangle' },
+            envelope: { attack: 0.02, decay: 0.1, sustain: 0.1, release: 0.3 }
+          }).toDestination();
+          synthSuccess.volume.value = -7;
+
+          synthFail = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: 'sawtooth' },
+            envelope: { attack: 0.05, decay: 0.2, sustain: 0.2, release: 0.25 }
+          }).toDestination();
+          synthFail.volume.value = -9;
+
+          synthFanfare = new Tone.PolySynth(Tone.Synth).toDestination();
+          synthFanfare.volume.value = -6;
+        }
+        if (Tone.context.state !== 'running') {
+          Tone.start();
+        }
+      } catch (e) {
+        console.warn('Audio gesture postponed:', e);
+      }
+    }
+
+    function playSuccessSound() {
+      if (!soundEnabled) return;
+      initAudio();
+      try {
+        const now = Tone.now();
+        synthSuccess.triggerAttackRelease(['C5', 'E5', 'G5'], '16n', now);
+        synthSuccess.triggerAttackRelease('C6', '8n', now + 0.1);
+      } catch (err) {}
+    }
+
+    function playFailSound() {
+      if (!soundEnabled) return;
+      initAudio();
+      try {
+        const now = Tone.now();
+        synthFail.triggerAttackRelease(['Eb3', 'Bb2'], '8n', now);
+        synthFail.triggerAttackRelease(['D3', 'A2'], '4n', now + 0.15);
+      } catch (err) {}
+    }
+
+    function playFanfareSound() {
+      if (!soundEnabled) return;
+      initAudio();
+      try {
+        const now = Tone.now();
+        synthFanfare.triggerAttackRelease(['C4', 'E4', 'G4'], '8n', now);
+        synthFanfare.triggerAttackRelease(['G4', 'B4', 'D5'], '8n', now + 0.18);
+        synthFanfare.triggerAttackRelease(['C5', 'E5', 'G5', 'C6'], '2n', now + 0.35);
+      } catch (err) {}
+    }
+
+    // Toggle Sound Button
+    const btnSound = document.getElementById('btn-sound');
+    const iconSoundOn = document.getElementById('icon-sound-on');
+    const iconSoundOff = document.getElementById('icon-sound-off');
+
+    btnSound.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      if (soundEnabled) {
+        iconSoundOn.classList.remove('hidden');
+        iconSoundOff.classList.add('hidden');
+        initAudio();
+      } else {
+        iconSoundOn.classList.add('hidden');
+        iconSoundOff.classList.remove('hidden');
+      }
+    });
+
+    function formatYear(year) {
+      if (year < 0) {
+        return `${Math.abs(year)} a.C.`;
+      }
+      return year.toString();
+    }
+
+    const DATABASE = [
+      { id: 56, year: -5000, title: 'El Ábaco', author: 'Civilizaciones Antiguas (Mesopotamia / Asia)', category: 'Mecánica', desc: 'Primer dispositivo mecánico para operaciones aritméticas mediante cuentas en varillas; ancestro universal del cálculo.', icon: '🧮' },
+      { id: 57, year: 1614, title: 'Logaritmos y Huesos de Napier', author: 'John Napier', category: 'Mecánica', desc: 'Invención de los logaritmos y de las varillas de marfil numeradas que convierten multiplicaciones y divisiones en sumas.', icon: '🦴' },
+      { id: 1, year: 1621, title: 'Regla de Cálculo Deslizante', author: 'William Oughtred', category: 'Mecánica', desc: 'Permite realizar multiplicaciones y divisiones usando escalas logarítmicas mecánicas.', icon: '📏' },
+      { id: 2, year: 1642, title: 'La Pascalina', author: 'Blaise Pascal', category: 'Mecánica', desc: 'Primera calculadora mecánica de ruedas dentadas y engranajes para sumar y restar.', icon: '⚙️' },
+      { id: 3, year: 1801, title: 'Telar de Jacquard', author: 'Joseph Marie Jacquard', category: 'Precursores Software', desc: 'Usa tarjetas perforadas para secuenciar y almacenar de forma automática patrones de tejido.', icon: '🧵' },
+      { id: 4, year: 1822, title: 'Máquina Diferencial', author: 'Charles Babbage', category: 'Computación Mecánica', desc: 'Diseño mecánico complejo ideado para calcular e imprimir tablas de funciones polinómicas.', icon: '🧮' },
+      { id: 5, year: 1843, title: 'Primer Algoritmo de la Historia', author: 'Ada Lovelace', category: 'Pioneras de la Computación', desc: 'Escribe el primer conjunto de instrucciones para la Máquina Analítica; primera programadora.', icon: '👩‍💻' },
+      { id: 6, year: 1854, title: 'Álgebra de Boole', author: 'George Boole', category: 'Lógica', desc: 'Formalización de la lógica binaria matemática (1 y 0), cimiento esencial de los circuitos digitales.', icon: '💡' },
+      { id: 7, year: 1890, title: 'Tabuladora con Tarjetas Perforadas', author: 'Herman Hollerith', category: 'Hardware de Datos', desc: 'Automatiza el censo de Estados Unidos en tiempo récord; empresa origen de IBM.', icon: '📑' },
+      { id: 58, year: 1906, title: 'La Válvula de Vacío (Tríodo Audion)', author: 'Lee de Forest & John Ambrose Fleming', category: 'Hardware Electrónico', desc: 'Primer interruptor y amplificador electrónico sin partes mecánicas; permite el nacimiento de la 1ª generación de computadores.', icon: '💡' },
+      { id: 8, year: 1936, title: 'Máquina de Turing y Computabilidad', author: 'Alan Turing', category: 'Teoría Computación', desc: 'Modelo teórico universal que define matemáticamente qué problemas son computables.', icon: '🧠' },
+      { id: 9, year: 1942, title: 'Espectro Ensanchado y Salto de Frecuencia', author: 'Hedy Lamarr & George Antheil', category: 'Pioneras de la Computación', desc: 'Patente militar de modulación contra interferencias, precursora directa del Wi-Fi, Bluetooth y GPS.', icon: '📡' },
+      { id: 10, year: 1945, title: 'Arquitectura Von Neumann', author: 'John von Neumann', category: 'Arquitectura', desc: 'Propone almacenar los datos y los programas en la misma memoria compartida (CPU, buses y memoria).', icon: '🏗️' },
+      { id: 11, year: 1946, title: 'ENIAC y sus 6 Programadoras Pioneras', author: 'Programadoras del ENIAC & Mauchly/Eckert', category: 'Pioneras de la Computación', desc: 'Primer gran computador digital electrónico; programado físicamente con cables por seis matemáticas pioneras.', icon: '🔌' },
+      { id: 12, year: 1947, title: 'Invención del Transistor', author: 'Bell Labs (Shockley, Bardeen, Brattain)', category: 'Microelectrónica', desc: 'Reemplaza a las válvulas de vacío; reduce drásticamente el tamaño, calor y consumo eléctrico.', icon: '🔬' },
+      { id: 13, year: 1949, title: 'La Enciclopedia Mecánica (Precursora del eBook)', author: 'Ángela Ruiz Robles', category: 'Pioneras de la Computación', desc: 'Inventora leonesa que patenta el primer libro mecánico e interactivo con carretes de texto y luz.', icon: '📖' },
+      { id: 14, year: 1952, title: 'Primer Compilador de la Historia (A-0)', author: 'Grace Hopper', category: 'Pioneras de la Computación', desc: 'Crea el primer compilador que traduce órdenes en palabras comprensibles a código máquina.', icon: '💻' },
+      { id: 59, year: 1956, title: 'Conferencia de Dartmouth (Nace el término "IA")', author: 'John McCarthy, Marvin Minsky, Claude Shannon', category: 'Inteligencia Artificial', desc: 'Encuentro fundacional en Dartmouth donde se acuña formalmente el término «Inteligencia Artificial» y se funda la disciplina.', icon: '🧠' },
+      { id: 15, year: 1957, title: 'Lenguaje FORTRAN', author: 'John Backus (IBM)', category: 'Lenguajes', desc: 'Primer lenguaje de programación de alto nivel de amplio uso para cálculo científico e ingeniería.', icon: '📜' },
+      { id: 16, year: 1958, title: 'Primer Circuito Integrado (Chip)', author: 'Jack Kilby & Robert Noyce', category: 'Microelectrónica', desc: 'Integra transistores y resistencias sobre una única pastilla de silicio; nacimiento del microchip.', icon: '🔲' },
+      { id: 17, year: 1959, title: 'Creación del Lenguaje COBOL', author: 'Grace Hopper & Comité CODASYL', category: 'Pioneras de la Computación', desc: 'Diseño del lenguaje estándar orientado a negocios y gestión con sintaxis en inglés legible.', icon: '💼' },
+      { id: 60, year: 1961, title: 'Unimate (Primer Robot Industrial de la Historia)', author: 'George Devol & Joseph Engelberger', category: 'Robótica y Automatización', desc: 'Brazo mecánico programable instalado en General Motors para soldar y mover piezas pesadas; inicio de la robótica moderna.', icon: '🦾' },
+      { id: 18, year: 1962, title: 'Cálculos de Trayectorias Orbitales de la NASA', author: 'Katherine Johnson & calculadoras humanas', category: 'Pioneras de la Computación', desc: 'Matemática afroamericana que calculó a mano las trayectorias de John Glenn y misiones Mercury/Apolo.', icon: '🚀' },
+      { id: 19, year: 1965, title: 'Creación de BASIC y Primer Doctorado Femenino', author: 'Mary Kenneth Keller, Kemeny y Kurtz', category: 'Pioneras de la Computación', desc: 'Primera mujer con doctorado en computación en EE.UU.; co-diseña BASIC para democratizar el código.', icon: '🎓' },
+      { id: 20, year: 1968, title: 'La Madre de Todas las Demos (Ratón y GUI)', author: 'Douglas Engelbart', category: 'Interfaces y SO', desc: 'Presentación mítica donde muestra por primera vez el ratón de madera, hipertexto, ventanas y videollamada.', icon: '🖱️' },
+      { id: 21, year: 1969, title: 'Nace ARPANET y Software del Apolo 11', author: 'Margaret Hamilton (MIT) & DARPA', category: 'Pioneras de la Computación', desc: 'Primer mensaje remoto en red y código asíncrono que evitó el aborto del alunizaje del Apolo 11.', icon: '🌕' },
+      { id: 22, year: 1971, title: 'El Microprocesador (Intel 4004) y el Primer Email (@)', author: 'Intel & Ray Tomlinson', category: 'Microprocesadores', desc: 'Primer microprocesador comercial en un chip y envío del primer correo electrónico fijando el símbolo @.', icon: '⚡' },
+      { id: 23, year: 1972, title: 'Lenguaje C y Búsqueda por Frecuencia Inversa (IDF)', author: 'Dennis Ritchie & Karen Spärck Jones', category: 'Lenguajes', desc: 'Nace el lenguaje C en Bell Labs y se formula el algoritmo de ponderación que hoy usan los buscadores web.', icon: '🗂️' },
+      { id: 24, year: 1976, title: 'Fundación de Apple y Apple I', author: 'Steve Jobs & Steve Wozniak', category: 'Informática Personal', desc: 'Placa de ordenador ensamblada en un garaje; despegue comercial del ordenador personal de aficionados.', icon: '🍏' },
+      { id: 25, year: 1977, title: 'Trinidad del PC Doméstico (Apple II, Commodore, TRS-80)', author: 'Apple, Commodore, Tandy', category: 'Informática Personal', desc: 'Primeros ordenadores listos para conectar y usar en el hogar con gráficos en color y teclado integrado.', icon: '📺' },
+      { id: 26, year: 1981, title: 'IBM 5150 PC y Estandarización de IPv4/TCP-IP', author: 'IBM & DARPA / IETF', category: 'Redes', desc: 'IBM estandariza el PC de oficina con MS-DOS mientras se publica la especificación IP de 32 bits de Internet.', icon: '🖥️' },
+      { id: 27, year: 1982, title: 'River Raid y Primeras Diseñadoras de Videojuegos', author: 'Carol Shaw (Activision)', category: 'Pioneras de la Computación', desc: 'Primera mujer programadora de videojuegos profesionales; crea el superventas River Raid para Atari.', icon: '🕹️' },
+      { id: 28, year: 1984, title: 'Apple Macintosh 128K', author: 'Apple', category: 'Interfaces y SO', desc: 'Populariza de forma masiva la interfaz gráfica GUI accesible con ventanas, iconos y ratón comercial.', icon: '🪟' },
+      { id: 29, year: 1985, title: 'Protocolo Spanning Tree (STP) y Procesador ARM', author: 'Radia Perlman & Sophie Wilson', category: 'Pioneras de la Computación', desc: 'Perlman evita bucles en redes Ethernet (STP) y Wilson diseña la arquitectura RISC de ARM presente hoy en miles de millones de móviles.', icon: '🌐' },
+      { id: 30, year: 1986, title: 'Modelado Geodésico Terrestre para el GPS', author: 'Gladys West', category: 'Pioneras de la Computación', desc: 'Matemática cuyos cálculos astronómicos y gravitacionales de alta precisión hicieron viable el sistema GPS.', icon: '🛰️' },
+      { id: 31, year: 1989, title: 'Diseño de la World Wide Web (CERN)', author: 'Tim Berners-Lee', category: 'Web', desc: 'Propuesta universal de hipertexto en red que une HTML, HTTP y direcciones URL para compartir información.', icon: '🌍' },
+      { id: 32, year: 1991, title: 'Nacen el Núcleo Linux y el Lenguaje Python', author: 'Linus Torvalds & Guido van Rossum', category: 'Sistemas Operativos', desc: 'Torvalds libera el kernel de código abierto GPL y Van Rossum lanza la primera versión legible de Python.', icon: '🐧' },
+      { id: 33, year: 1993, title: 'Navegador Web Gráfico NCSA Mosaic', author: 'Marc Andreessen & Eric Bina', category: 'Web', desc: 'Primer navegador web popular que integraba imágenes y texto en la misma página, detonando la red.', icon: '🧭' },
+      { id: 34, year: 1995, title: 'Año Clave: Windows 95, Java y JavaScript', author: 'Microsoft / Sun Microsystems / Netscape', category: 'Software y Web', desc: 'Lanzamiento simultáneo de Windows 95 con menú inicio, la máquina virtual Java y el dinamismo de JS.', icon: '💻' },
+      { id: 35, year: 1998, title: 'Fundación de Google y Algoritmo PageRank', author: 'Larry Page & Sergey Brin', category: 'Motores de Búsqueda', desc: 'Indexación de páginas según la relevancia y enlaces entrantes; transforma las búsquedas en la red.', icon: '🔍' },
+      { id: 36, year: 1999, title: 'Redes P2P con Napster y Wi-Fi Comercial', author: 'Shawn Fanning & Wi-Fi Alliance', category: 'Redes', desc: 'Revolución del intercambio de datos entre iguales (Peer-to-Peer) y estándar inalámbrico 802.11b.', icon: '🎧' },
+      { id: 37, year: 2001, title: 'Wikipedia y Licencias Creative Commons', author: 'Jimmy Wales, Larry Sanger, Lessig', category: 'Web Colaborativa', desc: 'Enciclopedia libre universal editada colaborativamente y licencias de derechos de autor flexibles.', icon: '📚' },
+      { id: 38, year: 2004, title: 'Fundación de Facebook y la Web 2.0', author: 'Mark Zuckerberg', category: 'Redes Sociales', desc: 'Arranca en Harvard la era de las redes sociales basadas en perfil e identidad real de los usuarios.', icon: '👥' },
+      { id: 39, year: 2005, title: 'Primer Vídeo en YouTube ("Me at the zoo")', author: 'Jawed Karim', category: 'Plataformas Web', desc: 'Inauguración del streaming y consumo masivo de vídeo digital generado por los propios usuarios.', icon: '▶️' },
+      { id: 40, year: 2006, title: 'Nacen Twitter (Microblogging) y Amazon AWS (Nube)', author: 'Jack Dorsey & Amazon', category: 'Cloud Computing', desc: 'Lanzamiento de mensajes de 140 caracteres y servidores elásticos en alquiler (EC2/S3); nace la nube moderna.', icon: '☁️' },
+      { id: 41, year: 2007, title: 'Presentación del iPhone', author: 'Steve Jobs', category: 'Smartphones', desc: 'Revolución de la pantalla táctil capacitiva multitáctil, navegación web de escritorio y App Store.', icon: '📱' },
+      { id: 42, year: 2008, title: 'Triple Hito 2008: Android, GitHub y Bitcoin', author: 'Google, GitHub & Satoshi Nakamoto', category: 'Desarrollo Software', desc: 'Llega Android al mercado móvil, se funda la mayor forja de código Git y se publica el whitepaper de Bitcoin.', icon: '🐙' },
+      { id: 43, year: 2009, title: 'Creación de ImageNet para Visión Artificial', author: 'Fei-Fei Li (Stanford)', category: 'Pioneras de la Computación', desc: 'Crea una gigantesca base de datos de 14 millones de imágenes etiquetadas que impulsará la IA moderna.', icon: '🖼️' },
+      { id: 44, year: 2010, title: 'Lanzamiento de Instagram', author: 'Kevin Systrom & Mike Krieger', category: 'Redes Sociales', desc: 'App móvil de fotografía instantánea con filtros cuadrados; adquirida por Facebook en 2012.', icon: '📷' },
+      { id: 45, year: 2011, title: 'Asistente Siri en iPhone 4S y Nace Twitch', author: 'Apple & Justin Kan', category: 'Inteligencia Artificial', desc: 'Primer asistente conversacional de voz masivo en el bolsillo y despegue de la transmisión de videojuegos.', icon: '🎙️' },
+      { id: 46, year: 2012, title: 'AlexNet (Revolución Deep Learning) y Raspberry Pi', author: 'Krizhevsky/Hinton & Eben Upton', category: 'Deep Learning', desc: 'Red convolucional en GPU vence en ImageNet desatando el Deep Learning; sale el PC educacional de 35$.', icon: '🍓' },
+      { id: 47, year: 2013, title: 'Filtraciones de Snowden sobre Vigilancia Global', author: 'Edward Snowden', category: 'Ciberseguridad', desc: 'Revela la vigilancia masiva en Internet; acelera la adopción global del cifrado HTTPS en toda la web.', icon: '🔐' },
+      { id: 48, year: 2015, title: 'Lanzamiento de TensorFlow y Fundación de OpenAI', author: 'Google Brain & Altman/Musk', category: 'Inteligencia Artificial', desc: 'Librería de código abierto para entrenar redes neuronales y creación del laboratorio de investigación.', icon: '🤖' },
+      { id: 49, year: 2016, title: 'AlphaGo vence en Go y Lanzamiento de TikTok', author: 'Google DeepMind & ByteDance', category: 'Inteligencia Artificial', desc: 'La IA vence al campeón mundial de Go y se masifica el vídeo corto vertical impulsado por algoritmos de IA.', icon: '🥋' },
+      { id: 50, year: 2017, title: 'Paper "Attention Is All You Need" (Transformer)', author: 'Vaswani et al. (Google Brain)', category: 'Inteligencia Artificial', desc: 'Presenta la arquitectura Transformer y autoatención, cimiento técnico de todos los modelos LLM modernos.', icon: '📄' },
+      { id: 51, year: 2018, title: 'Auditoría "Gender Shades" sobre Sesgos en IA y el RGPD', author: 'Joy Buolamwini & Timnit Gebru / UE', category: 'Pioneras de la Computación', desc: 'Demuestran el sesgo racial/género en reconocimiento facial; entra en vigor el RGPD europeo de privacidad.', icon: '⚖️' },
+      { id: 52, year: 2019, title: 'Supremacía Cuántica Experimental', author: 'Google Quantum AI (Sycamore)', category: 'Computación Cuántica', desc: 'Procesador de 53 cúbits resuelve en 200 segundos un cálculo inabordable para un superordenador clásico.', icon: '⚛️' },
+      { id: 53, year: 2020, title: 'Lanzamiento de GPT-3', author: 'OpenAI', category: 'Inteligencia Artificial', desc: 'Modelo de 175.000 millones de parámetros con asombrosa capacidad de generar código y texto coherente.', icon: '🧠' },
+      { id: 54, year: 2022, title: 'Lanzamiento Público de ChatGPT', author: 'OpenAI', category: 'Inteligencia Artificial', desc: 'Pone al alcance de cientos de millones de personas la IA generativa conversacional en lenguaje natural.', icon: '💬' },
+      { id: 55, year: 2024, title: 'Aprobación de la Ley Europea de IA (AI Act)', author: 'Unión Europea', category: 'Ética y Regulación', desc: 'Primer marco legislativo y vinculante del mundo para clasificar y regular los riesgos de los sistemas de IA.', icon: '🏛️' }
+    ];
+
+    let drawPile = [];
+    let timeline = [];
+    let hand = [];
+    let selectedCard = null;
+    let score = 0;
+    let streak = 0;
+    let maxStreak = 0;
+    let lives = 3;
+    const MAX_HAND_SIZE = 4;
+
+    // Classroom Assignment & Reroll State
+    let assignedCards = [];
+    let availableRerolls = 0;
+    let availableManualPicks = 0;
+    let manualTargetIndex = null;
+    let assignmentPool = [];
+
+    // Security state for Encyclopedia
+    let isEncyclopediaUnlocked = false;
+    const TEACHER_PASSWORD = 'lovelace';
+
+    function shuffle(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    // High-contrast Neubrutalist category sticker colors
+    function getCategoryBadge(cat) {
+      switch(cat) {
+        case 'Pioneras de la Computación':
+          return 'bg-neo-purple text-black font-extrabold';
+        case 'Mecánica':
+        case 'Computación Mecánica':
+          return 'bg-amber-300 text-black';
+        case 'Precursores Software':
+        case 'Pioneros Software':
+        case 'Lógica':
+          return 'bg-fuchsia-300 text-black';
+        case 'Hardware Electrónico':
+        case 'Microelectrónica':
+        case 'Microprocesadores':
+        case 'Arquitectura':
+        case 'Hardware de Datos':
+        case 'Hardware Educativo':
+          return 'bg-neo-cyan text-black';
+        case 'Robótica':
+        case 'Robótica y Automatización':
+          return 'bg-neo-orange text-black font-extrabold';
+        case 'Lenguajes':
+        case 'Sistemas Operativos':
+        case 'Interfaces y SO':
+        case 'Desarrollo Software':
+        case 'Software y Web':
+          return 'bg-blue-300 text-black';
+        case 'Redes':
+        case 'Telecomunicaciones':
+        case 'Web':
+        case 'Redes P2P':
+        case 'Criptografía y Redes':
+          return 'bg-neo-green text-black';
+        case 'Redes Sociales':
+        case 'Plataformas Web':
+        case 'Web Colaborativa':
+        case 'Smartphones':
+        case 'Sistemas Móviles':
+        case 'Streaming':
+        case 'Videojuegos':
+          return 'bg-neo-pink text-black';
+        case 'Inteligencia Artificial':
+        case 'Deep Learning':
+        case 'Computación Cuántica':
+          return 'bg-violet-300 text-black';
+        case 'Ética y Regulación':
+        case 'Ciberseguridad':
+          return 'bg-rose-300 text-black';
+        default:
+          return 'bg-slate-200 text-black';
+      }
+    }
+
+    function startNewGame() {
+      initAudio();
+      score = 0;
+      streak = 0;
+      maxStreak = 0;
+      lives = 3;
+      selectedCard = null;
+
+      drawPile = shuffle(DATABASE);
+
+      // 1 starting card on timeline
+      timeline = [drawPile.pop()];
+
+      // 4 cards in hand
+      hand = [];
+      for (let i = 0; i < MAX_HAND_SIZE; i++) {
+        if (drawPile.length > 0) hand.push(drawPile.pop());
+      }
+
+      updateUI();
+      setInstruction('👉 Elige una carta de tu mano haciendo clic sobre ella. Luego colócala en el botón <strong>[AQUÍ +]</strong> correspondiente.', 'info');
+    }
+
+    function updateUI() {
+      document.getElementById('stat-score').textContent = score;
+      document.getElementById('stat-streak').textContent = streak;
+
+      let hearts = '';
+      for (let i = 0; i < lives; i++) hearts += '❤️';
+      for (let i = lives; i < 3; i++) hearts += '🖤';
+      document.getElementById('stat-lives').textContent = hearts;
+
+      document.getElementById('timeline-count').textContent = timeline.length;
+      document.getElementById('deck-remaining-badge').textContent = `Quedan ${drawPile.length} en la baraja`;
+
+      renderTimeline();
+      renderHand();
+      updateSelectionIndicator();
+    }
+
+    function setInstruction(text, type = 'info') {
+      const bar = document.getElementById('instruction-bar');
+      const textElem = document.getElementById('instruction-text');
+      textElem.innerHTML = text;
+
+      if (type === 'success') {
+        bar.className = 'bg-neo-green border-b-[4px] border-black px-4 py-2.5 font-mono text-xs sm:text-sm font-bold text-center text-black';
+      } else if (type === 'error') {
+        bar.className = 'bg-neo-red border-b-[4px] border-black px-4 py-2.5 font-mono text-xs sm:text-sm font-bold text-center text-black animate-shake';
+      } else {
+        bar.className = 'bg-white border-b-[4px] border-black px-4 py-2.5 font-mono text-xs sm:text-sm font-bold text-center text-black';
+      }
+    }
+
+    function updateSelectionIndicator() {
+      const ind = document.getElementById('selection-indicator');
+      if (selectedCard) {
+        ind.className = 'text-xs font-mono font-bold px-3 py-1.5 rounded-lg bg-neo-yellow text-black border-[3px] border-black shadow-neo-sm flex items-center gap-2 animate-bounce';
+        ind.innerHTML = `<span>Carta en mano:</span> <strong class="bg-black text-white px-1.5 py-0.5 rounded text-[11px]">${selectedCard.title}</strong>`;
+      } else {
+        ind.className = 'text-xs font-mono font-bold px-3 py-1.5 rounded-lg bg-[#f1ede4] text-black border-[2px] border-black shadow-neo-sm flex items-center gap-2';
+        ind.innerHTML = `<span>Ninguna carta seleccionada</span>`;
+      }
+    }
+
+    function renderTimeline() {
+      const container = document.getElementById('timeline-container');
+      container.innerHTML = '';
+
+      for (let i = 0; i <= timeline.length; i++) {
+        // Slot insertion button
+        const slot = document.createElement('div');
+        slot.className = 'flex-shrink-0 flex flex-col items-center justify-center';
+
+        const slotBtn = document.createElement('button');
+        const isReady = selectedCard !== null;
+        slotBtn.className = `w-12 h-32 sm:w-14 sm:h-40 rounded-xl border-[3px] border-dashed border-black flex flex-col items-center justify-center gap-1 transition-all ${
+          isReady
+            ? 'bg-neo-yellow shadow-neo hover:bg-amber-300 cursor-pointer scale-105 animate-pulse'
+            : 'bg-slate-100/80 hover:bg-slate-200 cursor-pointer'
+        }`;
+        slotBtn.title = `Colocar carta aquí (posición ${i})`;
+        slotBtn.innerHTML = `
+          <div class="w-6 h-6 rounded-full bg-black text-white flex items-center justify-center text-xs font-mono font-bold">
+            +
+          </div>
+          <span class="text-[11px] font-mono font-black uppercase tracking-wider text-black mt-1">Aquí</span>
+        `;
+
+        slotBtn.addEventListener('click', () => handlePlaceCard(i));
+        slot.appendChild(slotBtn);
+        container.appendChild(slot);
+
+        // Render card
+        if (i < timeline.length) {
+          const cardData = timeline[i];
+          const card = createTimelineCardElement(cardData);
+          container.appendChild(card);
+        }
+      }
+    }
+
+    function createTimelineCardElement(data) {
+      const card = document.createElement('div');
+      card.className = 'flex-shrink-0 w-48 sm:w-56 bg-white border-[3px] border-black rounded-2xl p-3.5 shadow-neo flex flex-col justify-between h-52 sm:h-60 relative animate-pop hover:-translate-y-1 transition cursor-pointer group';
+      card.title = 'Haz clic para ver la ficha técnica detallada';
+
+      const catBadge = getCategoryBadge(data.category);
+
+      card.innerHTML = `
+        <div>
+          <!-- Header with revealed Year & Icon -->
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xl sm:text-2xl font-black font-mono tracking-tight bg-neo-yellow px-2 py-0.5 rounded-lg border-[2px] border-black shadow-neo-sm">
+              ${formatYear(data.year)}
+            </span>
+            <span class="text-2xl" title="${data.category}">${data.icon}</span>
+          </div>
+
+          <!-- Title & Author -->
+          <h4 class="font-black text-black text-xs sm:text-sm line-clamp-2 leading-tight group-hover:underline">
+            ${data.title}
+          </h4>
+          <p class="text-[11px] font-bold text-slate-600 mt-0.5 truncate">${data.author}</p>
+        </div>
+
+        <!-- Description & category tag -->
+        <div class="mt-2">
+          <p class="text-[10px] sm:text-xs font-semibold text-slate-800 line-clamp-3 leading-relaxed">
+            ${data.desc}
+          </p>
+          <div class="mt-2.5 flex items-center justify-between pt-1 border-t-[2px] border-black text-[10px] font-mono">
+            <span class="px-2 py-0.5 rounded border border-black font-bold truncate max-w-[120px] ${catBadge}">
+              ${data.category}
+            </span>
+            <span class="text-xs font-black group-hover:scale-125 transition-transform" title="Ver ficha técnica completa">🔍</span>
+          </div>
+        </div>
+      `;
+
+      card.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openCardDetail(data);
+      });
+
+      return card;
+    }
+
+    function renderHand() {
+      const container = document.getElementById('hand-container');
+      container.innerHTML = '';
+
+      if (hand.length === 0 && drawPile.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full py-8 text-center bg-neo-yellow/30 border-[3px] border-dashed border-black rounded-2xl">
+            <span class="text-3xl">🎉</span>
+            <p class="font-black text-sm uppercase mt-2">¡Has colocado todas las cartas disponibles!</p>
+          </div>
+        `;
+        return;
+      }
+
+      hand.forEach((cardData, idx) => {
+        const isSelected = selectedCard && selectedCard.id === cardData.id;
+        const card = document.createElement('div');
+        const catBadge = getCategoryBadge(cardData.category);
+
+        card.className = `relative bg-white border-[3px] border-black rounded-2xl p-4 shadow-neo flex flex-col justify-between cursor-pointer transition-all duration-150 ${
+          isSelected 
+            ? 'ring-4 ring-black bg-amber-50 -translate-y-2 shadow-neo-xl scale-[1.02]' 
+            : 'hover:-translate-y-1 hover:shadow-neo-lg'
+        }`;
+
+        card.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-mono font-black bg-black text-white px-2 py-0.5 rounded border border-black tracking-widest">
+                AÑO ????
+              </span>
+              <div class="flex items-center gap-1">
+                <button type="button" title="Ver ficha curricular del tema" class="btn-detail-hand w-6 h-6 rounded bg-slate-100 border border-black hover:bg-neo-yellow flex items-center justify-center text-xs">
+                  🔍
+                </button>
+                <span class="text-2xl">${cardData.icon}</span>
+              </div>
+            </div>
+            <h4 class="font-black text-xs sm:text-sm text-black leading-tight">
+              ${cardData.title}
+            </h4>
+            <p class="text-[11px] font-bold text-slate-600 mt-0.5 truncate">${cardData.author}</p>
+          </div>
+
+          <div class="mt-3">
+            <p class="text-[10px] sm:text-xs font-semibold text-slate-700 line-clamp-3 leading-relaxed">
+              ${cardData.desc}
+            </p>
+            <div class="mt-2.5 flex items-center justify-between pt-2 border-t-[2px] border-black">
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded border border-black font-bold truncate max-w-[150px] ${catBadge}">
+                ${cardData.category}
+              </span>
+              <span class="text-xs font-black ${isSelected ? 'text-black' : 'text-slate-400'}">
+                ${isSelected ? '👉 LISTA' : 'TOCAR'}
+              </span>
+            </div>
+          </div>
+        `;
+
+        card.addEventListener('click', () => {
+          if (selectedCard && selectedCard.id === cardData.id) {
+            selectedCard = null;
+            setInstruction('Selección cancelada. Elige una carta para ubicar.', 'info');
+          } else {
+            selectedCard = cardData;
+            setInstruction(`Carta seleccionada: <strong>${cardData.title}</strong>. Ahora pulsa el botón <strong>[AQUÍ +]</strong> en el orden correcto.`, 'info');
+          }
+          updateUI();
+        });
+
+        // Detail button directly on hand card
+        const btnDetail = card.querySelector('.btn-detail-hand');
+        btnDetail.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openCardDetail(cardData);
+        });
+
+        container.appendChild(card);
+      });
+    }
+
+    function handlePlaceCard(slotIndex) {
+      if (!selectedCard) {
+        setInstruction('⚠️ Primero pulsa en una de las cartas de tu baraja abajo.', 'error');
+        return;
+      }
+
+      const cardToPlace = selectedCard;
+      const cardYear = cardToPlace.year;
+
+      const prevCard = slotIndex > 0 ? timeline[slotIndex - 1] : null;
+      const nextCard = slotIndex < timeline.length ? timeline[slotIndex] : null;
+
+      const isGreaterOrEqualPrev = !prevCard || cardYear >= prevCard.year;
+      const isSmallerOrEqualNext = !nextCard || cardYear <= nextCard.year;
+
+      if (isGreaterOrEqualPrev && isSmallerOrEqualNext) {
+        // Correct placement
+        playSuccessSound();
+        timeline.splice(slotIndex, 0, cardToPlace);
+        hand = hand.filter(c => c.id !== cardToPlace.id);
+
+        score += 1;
+        streak += 1;
+        if (streak > maxStreak) maxStreak = streak;
+
+        if (drawPile.length > 0) {
+          hand.push(drawPile.pop());
+        }
+
+        selectedCard = null;
+        setInstruction(`¡Correcto! <strong>${cardToPlace.title}</strong> ocurrió en <strong>${formatYear(cardToPlace.year)}</strong>. ¡Racha: ${streak}!`, 'success');
+        updateUI();
+
+        // Auto-center the timeline view on the newly placed card
+        setTimeout(() => {
+          const container = document.getElementById('timeline-container');
+          const targetIndex = slotIndex * 2 + 1;
+          const targetCardEl = container && container.children[targetIndex];
+          if (targetCardEl) {
+            targetCardEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+          }
+          updateTimelineScrollButtons();
+        }, 80);
+
+        // Check victory
+        if (hand.length === 0 && drawPile.length === 0) {
+          setTimeout(() => showGameOverModal(true), 600);
+        }
+      } else {
+        // Wrong placement
+        playFailSound();
+        lives -= 1;
+        streak = 0;
+
+        let feedbackMsg = `¡Incorrecto! <strong>${cardToPlace.title}</strong> es de <strong>${formatYear(cardToPlace.year)}</strong>. `;
+        if (prevCard && cardYear < prevCard.year) {
+          feedbackMsg += `Ocurrió antes que <em>${prevCard.title} (${formatYear(prevCard.year)})</em>.`;
+        } else if (nextCard && cardYear > nextCard.year) {
+          feedbackMsg += `Ocurrió después que <em>${nextCard.title} (${formatYear(nextCard.year)})</em>.`;
+        }
+
+        setInstruction(feedbackMsg, 'error');
+        updateUI();
+
+        if (lives <= 0) {
+          setTimeout(() => showGameOverModal(false), 800);
+        }
+      }
+    }
+
+    function getCardDossierInfo(data) {
+      const yearStr = formatYear(data.year);
+      
+      const dossiers = {
+        56: {
+          tech: 'Operación posicional de cómputo en base decimal mediante desplazamiento manual de cuentas en varillas ranuradas.',
+          ctx: 'Surgido en Mesopotamia y perfeccionado en Asia hacia el 5000 a.C. como solución para el registro mercantil y astronómico.',
+          impact: 'Primer soporte físico de cálculo numérico externo a la mente humana; precursor cognitivo del cómputo posicional.',
+          tips: ['Explicar la transición del cálculo manual al mecánico', 'Relacionar la representación posicional de las cuentas con la memoria de registro moderna']
+        },
+        5: {
+          tech: 'Diseño del algoritmo para calcular los números de Bernoulli en la Máquina Analítica con variables, bucles y bifurcaciones.',
+          ctx: 'Londres, 1843. Lovelace tradujo las notas de Menabrea y vislumbró que la máquina podía manipular símbolos y no solo números.',
+          impact: 'Fundamento conceptual del software moderno y de la programación antes de la existencia del hardware electrónico.',
+          tips: ['Destacar su visión de que las máquinas procesarían música y símbolos', 'Citar el algoritmo de Bernoulli como el primer programa']
+        },
+        8: {
+          tech: 'Definición matemática de una máquina abstracta con cinta infinita, cabezal de lectura/escritura y tabla finita de estados.',
+          ctx: 'Reino Unido, 1936. Respuesta al problema de decisión (Entscheidungsproblem) planteado por David Hilbert.',
+          impact: 'Demostró formalmente qué problemas son computables y cuáles son indecibles; base de la teoría de la computación.',
+          tips: ['Explicar la diferencia entre problemas computables e indecibles', 'Relacionar el problema de la parada con los bucles infinitos en Python']
+        },
+        10: {
+          tech: 'Arquitectura que unifica en una memoria compartida las instrucciones y los datos, con CPU (ALU + Control) y buses.',
+          ctx: '1945, Instituto de Estudios Avanzados de Princeton. Informe preliminar del EDVAC.',
+          impact: 'Estructura estándar de casi cualquier ordenador, móvil o microcontrolador que utilizamos en la actualidad.',
+          tips: ['Dibujar el diagrama de bloques de Von Neumann', 'Analizar el cuello de botella de Von Neumann y la caché moderna']
+        },
+        12: {
+          tech: 'Dispositivo semiconductor de estado sólido que conmuta y amplifica corriente eléctrica mediante uniones p-n.',
+          ctx: 'Laboratorios Bell, diciembre de 1947. Buscaban un sustituto robusto, frío y duradero para las frágiles válvulas de vacío.',
+          impact: 'Posibilitó la miniaturización extrema, la Ley de Moore y el nacimiento de toda la microelectrónica moderna.',
+          tips: ['Comparar el consumo y tamaño de una válvula frente al transistor', 'Explicar cómo funciona como interruptor binario (0 y 1)']
+        }
+      };
+
+      if (dossiers[data.id]) {
+        return dossiers[data.id];
+      }
+
+      // Default contextual engine for curricular milestones
+      return {
+        tech: `Principio técnico de ${data.category.toLowerCase()}: procesamiento, codificación y arquitectura asociada a "${data.title}".`,
+        ctx: `Desarrollado en torno a ${yearStr} por ${data.author}, dando respuesta a la creciente demanda de tratamiento automático de la información.`,
+        impact: `Hito clave que cimentó las bases de las Ciencias de la Computación actuales y su integración en el currículo de 1º de Bachillerato.`,
+        tips: [
+          `Identificar el problema tecnológico concreto que resolvió en ${yearStr}`,
+          `Relacionar su funcionamiento técnico con los contenidos del Bloque A y D de la materia`,
+          `Reflexionar sobre su repercusión social y económica en el siglo XXI`
+        ]
+      };
+    }
+
+    function openCardDetail(data) {
+      const modal = document.getElementById('modal-card-detail');
+      const dossier = getCardDossierInfo(data);
+
+      document.getElementById('detail-year').textContent = formatYear(data.year);
+      document.getElementById('detail-icon').textContent = data.icon;
+      document.getElementById('detail-title').textContent = data.title;
+      document.getElementById('detail-author').textContent = data.author || 'Pioneros de la Informática';
+      
+      const badge = document.getElementById('detail-category-badge');
+      badge.textContent = data.category;
+      badge.className = `text-xs font-mono font-bold uppercase px-2 py-0.5 rounded border-[2px] border-black ${getCategoryBadge(data.category)}`;
+
+      document.getElementById('detail-desc').textContent = data.desc;
+      document.getElementById('detail-technical').textContent = dossier.tech;
+      document.getElementById('detail-context').textContent = dossier.ctx;
+      document.getElementById('detail-impact').textContent = dossier.impact;
+
+      const tipsList = document.getElementById('detail-tips');
+      tipsList.innerHTML = '';
+      dossier.tips.forEach(t => {
+        const li = document.createElement('li');
+        li.textContent = t;
+        tipsList.appendChild(li);
+      });
+
+      modal.classList.remove('hidden');
+    }
+
+    document.getElementById('btn-close-detail').addEventListener('click', () => {
+      document.getElementById('modal-card-detail').classList.add('hidden');
+    });
+    document.getElementById('btn-detail-ok').addEventListener('click', () => {
+      document.getElementById('modal-card-detail').classList.add('hidden');
+    });
+
+    function showGameOverModal(isVictory) {
+      const modal = document.getElementById('modal-result');
+      const title = document.getElementById('modal-result-title');
+      const msg = document.getElementById('modal-result-msg');
+      const icon = document.getElementById('modal-result-icon');
+
+      document.getElementById('modal-score').textContent = score;
+      document.getElementById('modal-max-streak').textContent = maxStreak;
+      document.getElementById('modal-total').textContent = timeline.length;
+
+      if (isVictory) {
+        playFanfareSound();
+        icon.textContent = '👑';
+        title.textContent = '¡Baraja Superada!';
+        msg.textContent = `¡Impresionante! Habéis colocado todos los hitos con ${score} aciertos y una racha de ${maxStreak}.`;
+      } else {
+        icon.textContent = '💥';
+        title.textContent = '¡Partida Finalizada!';
+        msg.textContent = `Se han agotado las vidas. Habéis consolidado ${timeline.length} cartas en la línea de tiempo.`;
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    document.getElementById('modal-btn-close').addEventListener('click', () => {
+      document.getElementById('modal-result').classList.add('hidden');
+    });
+    document.getElementById('modal-btn-restart').addEventListener('click', () => {
+      document.getElementById('modal-result').classList.add('hidden');
+      startNewGame();
+    });
+    document.getElementById('btn-restart').addEventListener('click', () => {
+      startNewGame();
+    });
+
+    document.getElementById('modal-btn-open-assignment').addEventListener('click', () => {
+      document.getElementById('modal-result').classList.add('hidden');
+      openAssignmentModal();
+    });
+
+    function openAssignmentModal() {
+      const modal = document.getElementById('modal-assignment');
+      
+      // Pool contains cards that were placed on the timeline
+      assignmentPool = [...timeline];
+      if (assignmentPool.length < 4) {
+        // Fallback: fill from DATABASE if game ended very early
+        const missing = DATABASE.filter(c => !assignmentPool.some(a => a.id === c.id));
+        assignmentPool = assignmentPool.concat(shuffle(missing).slice(0, 4 - assignmentPool.length));
+      }
+
+      // Calculate Rerolls: 1 if maxStreak > 5 + 1 per every 4 score points
+      let rerolls = 0;
+      let rerollExplanations = [];
+      if (maxStreak > 5) {
+        rerolls += 1;
+        rerollExplanations.push('+1 por Racha > 5');
+      }
+      const scoreRerolls = Math.floor(score / 4);
+      if (scoreRerolls > 0) {
+        rerolls += scoreRerolls;
+        rerollExplanations.push(`+${scoreRerolls} por aciertos (${score} aciertos)`);
+      }
+      availableRerolls = rerolls;
+
+      // Calculate Manual Picks: +1 if maxStreak > 10, +1 if score > 12
+      let manualPicks = 0;
+      let manualExplanations = [];
+      if (maxStreak > 10) {
+        manualPicks += 1;
+        manualExplanations.push('+1 por Racha > 10');
+      }
+      if (score > 12) {
+        manualPicks += 1;
+        manualExplanations.push('+1 por Aciertos > 12');
+      }
+      availableManualPicks = manualPicks;
+
+      // Update token explanations banner
+      const explBanner = document.getElementById('assignment-reroll-explanation');
+      const parts = [];
+      if (rerollExplanations.length > 0) parts.push(`🎲 Rerolls: ${rerollExplanations.join(', ')}`);
+      else parts.push('🎲 Rerolls: 0 (Supera racha 5 o suma 4 aciertos para ganar)');
+      
+      if (manualExplanations.length > 0) parts.push(`👆 A Dedo: ${manualExplanations.join(', ')}`);
+      else parts.push('👆 A Dedo: 0 (Supera racha 10 o suma más de 12 aciertos)');
+      
+      explBanner.textContent = parts.join(' | ');
+      document.getElementById('assignment-pool-count').textContent = `Pool disponible en mesa: ${assignmentPool.length} hitos`;
+
+      // Draw initial 4 unique cards from pool
+      const shuffledPool = shuffle(assignmentPool);
+      assignedCards = shuffledPool.slice(0, 4);
+
+      renderAssignmentUI();
+      modal.classList.remove('hidden');
+    }
+
+    function renderAssignmentUI() {
+      document.getElementById('assignment-reroll-count').textContent = availableRerolls;
+      document.getElementById('assignment-manual-count').textContent = availableManualPicks;
+
+      const container = document.getElementById('assignment-cards-container');
+      container.innerHTML = '';
+
+      assignedCards.forEach((card, idx) => {
+        const cardBox = document.createElement('div');
+        cardBox.className = 'bg-white border-[3px] border-black rounded-2xl p-4 shadow-neo flex flex-col justify-between relative';
+
+        const catBadge = getCategoryBadge(card.category);
+
+        cardBox.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-mono font-black bg-neo-yellow text-black px-2 py-0.5 rounded border border-black shadow-neo-sm">
+                Tema ${idx + 1} • ${formatYear(card.year)}
+              </span>
+              <span class="text-2xl">${card.icon}</span>
+            </div>
+            <h4 class="font-black text-sm text-black leading-tight mt-1">
+              ${card.title}
+            </h4>
+            <p class="text-[11px] font-bold text-slate-600 mt-0.5 truncate">${card.author}</p>
+            <p class="text-xs font-semibold text-slate-700 mt-2 line-clamp-3 leading-relaxed">
+              ${card.desc}
+            </p>
+            <div class="mt-2">
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded border border-black font-bold ${catBadge}">
+                ${card.category}
+              </span>
+            </div>
+          </div>
+
+          <div class="mt-4 pt-3 border-t-[2px] border-black flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button type="button" class="btn-reroll-card flex-1 py-1.5 px-2 bg-neo-pink hover:bg-pink-300 text-black text-xs font-black rounded-lg border-[2px] border-black shadow-neo-sm btn-neo flex items-center justify-center gap-1 ${availableRerolls <= 0 ? 'opacity-40 cursor-not-allowed' : ''}">
+                <span>🎲</span> <span>Reroll</span>
+              </button>
+              <button type="button" class="btn-manual-card flex-1 py-1.5 px-2 bg-neo-yellow hover:bg-amber-300 text-black text-xs font-black rounded-lg border-[2px] border-black shadow-neo-sm btn-neo flex items-center justify-center gap-1 ${availableManualPicks <= 0 ? 'opacity-40 cursor-not-allowed' : ''}">
+                <span>👆</span> <span>A Dedo</span>
+              </button>
+            </div>
+            <button type="button" class="btn-view-dossier w-full py-1 bg-slate-100 hover:bg-slate-200 text-black text-[11px] font-mono font-bold rounded-lg border border-black">
+              🔍 Ver Ficha Curricular
+            </button>
+          </div>
+        `;
+
+        // Reroll single card
+        const btnReroll = cardBox.querySelector('.btn-reroll-card');
+        btnReroll.addEventListener('click', () => {
+          if (availableRerolls <= 0) return;
+          performReroll(idx);
+        });
+
+        // Manual pick card
+        const btnManual = cardBox.querySelector('.btn-manual-card');
+        btnManual.addEventListener('click', () => {
+          if (availableManualPicks <= 0) return;
+          openManualPicker(idx);
+        });
+
+        // Dossier detail
+        const btnDossier = cardBox.querySelector('.btn-view-dossier');
+        btnDossier.addEventListener('click', () => {
+          openCardDetail(card);
+        });
+
+        container.appendChild(cardBox);
+      });
+    }
+
+    function performReroll(cardIndex) {
+      // Find candidate cards in pool that are not currently assigned
+      const candidates = assignmentPool.filter(c => !assignedCards.some(a => a.id === c.id));
+      if (candidates.length === 0) {
+        setInstruction('No quedan más hitos distintos en la mesa para sortear.', 'error');
+        return;
+      }
+      const newCard = candidates[Math.floor(Math.random() * candidates.length)];
+      assignedCards[cardIndex] = newCard;
+      availableRerolls -= 1;
+      playSuccessSound();
+      renderAssignmentUI();
+    }
+
+    function openManualPicker(targetIndex) {
+      manualTargetIndex = targetIndex;
+      const modal = document.getElementById('modal-pick-manual');
+      const listContainer = document.getElementById('pick-manual-cards-list');
+      listContainer.innerHTML = '';
+
+      // All cards in assignmentPool that are not already assigned
+      const availableCandidates = assignmentPool.filter(c => !assignedCards.some(a => a.id === c.id));
+
+      if (availableCandidates.length === 0) {
+        listContainer.innerHTML = '<p class="col-span-full font-bold text-center py-6">No hay más hitos disponibles en la mesa.</p>';
+      } else {
+        availableCandidates.forEach(cand => {
+          const item = document.createElement('div');
+          item.className = 'bg-white border-[3px] border-black rounded-xl p-3 shadow-neo hover:bg-amber-50 cursor-pointer transition flex flex-col justify-between';
+          item.innerHTML = `
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <span class="font-mono font-black text-xs bg-neo-yellow px-1.5 py-0.5 rounded border border-black">${formatYear(cand.year)}</span>
+                <span class="text-xl">${cand.icon}</span>
+              </div>
+              <h5 class="font-black text-xs text-black leading-tight">${cand.title}</h5>
+              <p class="text-[10px] font-bold text-slate-600 truncate">${cand.author}</p>
+            </div>
+            <button type="button" class="mt-2 py-1 px-2 bg-neo-green text-black font-black text-[11px] rounded border border-black shadow-neo-sm uppercase">
+              Elegir Este
+            </button>
+          `;
+          item.addEventListener('click', () => {
+            assignedCards[manualTargetIndex] = cand;
+            availableManualPicks -= 1;
+            playSuccessSound();
+            modal.classList.add('hidden');
+            renderAssignmentUI();
+          });
+          listContainer.appendChild(item);
+        });
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    document.getElementById('btn-close-pick-manual').addEventListener('click', () => {
+      document.getElementById('modal-pick-manual').classList.add('hidden');
+    });
+
+    document.getElementById('btn-close-assignment').addEventListener('click', () => {
+      document.getElementById('modal-assignment').classList.add('hidden');
+    });
+    document.getElementById('btn-done-assignment').addEventListener('click', () => {
+      document.getElementById('modal-assignment').classList.add('hidden');
+    });
+
+    document.getElementById('btn-copy-assignment').addEventListener('click', () => {
+      const pairName = document.getElementById('assignment-pair-names').value.trim() || 'Pareja de Alumnos';
+      let text = `========================================================\n`;
+      text += `CIENCIAS DE LA COMPUTACIÓN 1º BACHILLERATO - PROYECTO HISTORIA\n`;
+      text += `ALUMNADO: ${pairName}\n`;
+      text += `HITOS ASIGNADOS PARA LA MEMORIA TÉCNICA (BLOQUES A Y D):\n`;
+      text += `========================================================\n\n`;
+
+      assignedCards.forEach((c, idx) => {
+        text += `[HITO ${idx + 1}] (${formatYear(c.year)}) ${c.title}\n`;
+        text += `  • Autor/Pionero: ${c.author}\n`;
+        text += `  • Campo: ${c.category}\n`;
+        text += `  • Resumen: ${c.desc}\n\n`;
+      });
+
+      text += `REQUISITOS DEL DOCUMENTO OFIMÁTICO (BLOQUE D):\n`;
+      text += `- Portada con datos institucionales y maquetación limpia.\n`;
+      text += `- Índice de contenidos generado automáticamente con estilos de título.\n`;
+      text += `- Una sección detallada por cada hito con principio técnico, contexto histórico e impacto.\n`;
+      text += `- Notas al pie de página y bibliografía/webgrafía en formato estándar.\n`;
+
+      const tempArea = document.createElement('textarea');
+      tempArea.value = text;
+      document.body.appendChild(tempArea);
+      tempArea.select();
+      try {
+        document.execCommand('copy');
+        setInstruction('📋 ¡Asignación copiada al portapapeles! Pegadla en vuestro procesador o aula virtual.', 'success');
+      } catch (err) {
+        console.warn('Copy error:', err);
+      }
+      document.body.removeChild(tempArea);
+    });
+
+    document.getElementById('btn-open-encyclopedia').addEventListener('click', () => {
+      if (isEncyclopediaUnlocked) {
+        openEncyclopediaModal();
+      } else {
+        document.getElementById('modal-password').classList.remove('hidden');
+        document.getElementById('password-input').value = '';
+        document.getElementById('password-error-msg').classList.add('hidden');
+        document.getElementById('password-input').focus();
+      }
+    });
+
+    document.getElementById('btn-close-password-modal').addEventListener('click', () => {
+      document.getElementById('modal-password').classList.add('hidden');
+    });
+    document.getElementById('btn-cancel-password').addEventListener('click', () => {
+      document.getElementById('modal-password').classList.add('hidden');
+    });
+
+    document.getElementById('form-unlock-encyclopedia').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const entered = document.getElementById('password-input').value.trim().toLowerCase();
+      if (entered === TEACHER_PASSWORD) {
+        isEncyclopediaUnlocked = true;
+        document.getElementById('encyclopedia-lock-icon').textContent = '🔓';
+        document.getElementById('modal-password').classList.add('hidden');
+        openEncyclopediaModal();
+      } else {
+        const errorMsg = document.getElementById('password-error-msg');
+        errorMsg.classList.remove('hidden');
+        document.getElementById('password-input').value = '';
+      }
+    });
+
+    document.getElementById('btn-relock-encyclopedia').addEventListener('click', () => {
+      isEncyclopediaUnlocked = false;
+      document.getElementById('encyclopedia-lock-icon').textContent = '🔒';
+      document.getElementById('modal-encyclopedia').classList.add('hidden');
+      setInstruction('🔒 Enciclopedia protegida con contraseña de nuevo.', 'info');
+    });
+
+    document.getElementById('btn-close-encyclopedia').addEventListener('click', () => {
+      document.getElementById('modal-encyclopedia').classList.add('hidden');
+    });
+
+    function openEncyclopediaModal() {
+      const modal = document.getElementById('modal-encyclopedia');
+      renderEncyclopediaList(DATABASE);
+      modal.classList.remove('hidden');
+    }
+
+    function renderEncyclopediaList(cards) {
+      const container = document.getElementById('encyclopedia-list');
+      container.innerHTML = '';
+      document.getElementById('encyclopedia-count').textContent = `Mostrando ${cards.length} hitos`;
+
+      const sorted = [...cards].sort((a, b) => a.year - b.year);
+
+      sorted.forEach(c => {
+        const item = document.createElement('div');
+        item.className = 'bg-white border-[3px] border-black rounded-xl p-3 shadow-neo hover:bg-amber-50 cursor-pointer transition';
+        const catBadge = getCategoryBadge(c.category);
+
+        item.innerHTML = `
+          <div class="flex items-start justify-between gap-2">
+            <span class="font-mono font-black text-sm bg-neo-yellow text-black px-2 py-0.5 rounded border border-black shadow-neo-sm">
+              ${formatYear(c.year)}
+            </span>
+            <span class="text-xl">${c.icon}</span>
+          </div>
+          <h4 class="font-black text-xs sm:text-sm text-black mt-1.5 leading-tight">${c.title}</h4>
+          <p class="text-[11px] font-bold text-slate-600 mt-0.5">${c.author}</p>
+          <p class="text-xs font-semibold text-slate-700 mt-1.5 leading-relaxed">${c.desc}</p>
+          <div class="mt-2.5 flex items-center justify-between pt-1 border-t border-black/20">
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded border border-black font-bold ${catBadge}">
+              ${c.category}
+            </span>
+            <span class="text-[11px] font-mono font-bold text-black underline">Ver ficha 🔍</span>
+          </div>
+        `;
+
+        item.addEventListener('click', () => {
+          openCardDetail(c);
+        });
+
+        container.appendChild(item);
+      });
+    }
+
+    document.getElementById('encyclopedia-search').addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase().trim();
+      const filtered = DATABASE.filter(c => 
+        c.title.toLowerCase().includes(q) ||
+        c.author.toLowerCase().includes(q) ||
+        c.category.toLowerCase().includes(q) ||
+        formatYear(c.year).toLowerCase().includes(q) ||
+        c.desc.toLowerCase().includes(q)
+      );
+      renderEncyclopediaList(filtered);
+    });
+
+    const timelineContainer = document.getElementById('timeline-container');
+    const btnScrollLeft = document.getElementById('btn-scroll-timeline-left');
+    const btnScrollRight = document.getElementById('btn-scroll-timeline-right');
+
+    function updateTimelineScrollButtons() {
+      if (!timelineContainer || !btnScrollLeft || !btnScrollRight) return;
+      const maxScroll = timelineContainer.scrollWidth - timelineContainer.clientWidth;
+
+      if (timelineContainer.scrollLeft <= 12) {
+        btnScrollLeft.classList.add('opacity-40', 'cursor-not-allowed');
+      } else {
+        btnScrollLeft.classList.remove('opacity-40', 'cursor-not-allowed');
+      }
+
+      if (timelineContainer.scrollLeft >= maxScroll - 12) {
+        btnScrollRight.classList.add('opacity-40', 'cursor-not-allowed');
+      } else {
+        btnScrollRight.classList.remove('opacity-40', 'cursor-not-allowed');
+      }
+    }
+
+    // Converts vertical mouse wheel movement into smooth horizontal track translation
+    timelineContainer.addEventListener('wheel', (e) => {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        e.preventDefault();
+        timelineContainer.scrollLeft += e.deltaY * 1.35;
+        updateTimelineScrollButtons();
+      }
+    }, { passive: false });
+
+    // Lateral button clicks
+    btnScrollLeft.addEventListener('click', () => {
+      timelineContainer.scrollBy({ left: -380, behavior: 'smooth' });
+      setTimeout(updateTimelineScrollButtons, 320);
+    });
+
+    btnScrollRight.addEventListener('click', () => {
+      timelineContainer.scrollBy({ left: 380, behavior: 'smooth' });
+      setTimeout(updateTimelineScrollButtons, 320);
+    });
+
+    timelineContainer.addEventListener('scroll', updateTimelineScrollButtons);
+
+    // Mouse drag-to-scroll for interactive boards or quick panning
+    let isDraggingTimeline = false;
+    let dragStartX = 0;
+    let scrollStartLeft = 0;
+
+    timelineContainer.addEventListener('mousedown', (e) => {
+      // Don't hijack card detail clicks
+      if (e.target.closest('button')) return;
+      isDraggingTimeline = true;
+      dragStartX = e.pageX - timelineContainer.offsetLeft;
+      scrollStartLeft = timelineContainer.scrollLeft;
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDraggingTimeline = false;
+    });
+
+    timelineContainer.addEventListener('mousemove', (e) => {
+      if (!isDraggingTimeline) return;
+      e.preventDefault();
+      const x = e.pageX - timelineContainer.offsetLeft;
+      const walk = (x - dragStartX) * 1.5;
+      timelineContainer.scrollLeft = scrollStartLeft - walk;
+      updateTimelineScrollButtons();
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      startNewGame();
+      setTimeout(updateTimelineScrollButtons, 200);
+    });
+  </script>
+</body>
+</html>
