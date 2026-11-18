@@ -1,0 +1,3447 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIÉDRICO LAB • Entrenador de Vistas 3D</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;900&family=JetBrains+Mono:wght@600;800&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Space Grotesk', -apple-system, sans-serif;
+            background-color: #F6F3EB;
+            background-image: radial-gradient(#000000 1.2px, transparent 1.2px);
+            background-size: 24px 24px;
+            user-select: none;
+        }
+        .font-mono-code { font-family: 'JetBrains Mono', monospace; }
+        .font-heading { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .brutal-border { border: 3px solid #000000; }
+        .brutal-border-sm { border: 2px solid #000000; }
+        .brutal-border-lg { border: 4px solid #000000; }
+        .brutal-shadow { box-shadow: 4px 4px 0px 0px #000000; }
+        .brutal-shadow-sm { box-shadow: 2px 2px 0px 0px #000000; }
+        .brutal-shadow-lg { box-shadow: 6px 6px 0px 0px #000000; }
+        .brutal-btn {
+            transition: transform 0.08s ease, box-shadow 0.08s ease;
+        }
+        .brutal-btn:hover:not(:disabled) {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px 0px #000000;
+        }
+        .brutal-btn:active:not(:disabled) {
+            transform: translate(2px, 2px);
+            box-shadow: 1px 1px 0px 0px #000000;
+        }
+        .notebook-sheet {
+            --total-units: 9;
+            background-color: #FFFFFF;
+            background-image:
+                linear-gradient(to right, #BAE6FD 1.5px, transparent 1.5px),
+                linear-gradient(to bottom, #BAE6FD 1.5px, transparent 1.5px);
+            background-size: calc(100% / var(--total-units)) calc(100% / var(--total-units));
+            background-position: 0 0;
+        }
+        .edge-btn {
+            position: absolute;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .edge-btn-h {
+            height: 16px;
+            left: 2px;
+            right: 2px;
+            margin-top: -8px;
+        }
+        .edge-btn-v {
+            width: 16px;
+            top: 2px;
+            bottom: 2px;
+            margin-left: -8px;
+        }
+        .edge-line {
+            transition: all 0.1s ease;
+            pointer-events: none;
+        }
+        .edge-btn-h .edge-line {
+            width: 100%;
+            height: 0px;
+            border-top: 2px dashed rgba(0,0,0,0.22);
+        }
+        .edge-btn-v .edge-line {
+            height: 100%;
+            width: 0px;
+            border-left: 2px dashed rgba(0,0,0,0.22);
+        }
+        .edge-btn:hover .edge-line {
+            border-color: #00F0FF !important;
+            border-width: 4px !important;
+        }
+        .edge-solid.edge-btn-h .edge-line {
+            border-top: 5px solid #000000 !important;
+        }
+        .edge-solid.edge-btn-v .edge-line {
+            border-left: 5px solid #000000 !important;
+        }
+        .edge-dashed.edge-btn-h .edge-line {
+            border-top: 4px dashed #000000 !important;
+        }
+        .edge-dashed.edge-btn-v .edge-line {
+            border-left: 4px dashed #000000 !important;
+        }
+        .edge-missing.edge-btn-h .edge-line {
+            border-top: 5px dashed #FFE600 !important;
+            background-color: #000000;
+        }
+        .edge-missing.edge-btn-v .edge-line {
+            border-left: 5px dashed #FFE600 !important;
+            background-color: #000000;
+        }
+        .edge-extra.edge-btn-h .edge-line {
+            border-top: 5px solid #FF6B8B !important;
+        }
+        .edge-extra.edge-btn-v .edge-line {
+            border-left: 5px solid #FF6B8B !important;
+        }
+
+        /* ===== LAYOUT "APP": todo cabe en la pantalla (3D + cuaderno + botones siempre visibles) ===== */
+        :root { --hdr: 56px; }
+        .app-shell {
+            height: calc(100vh - var(--hdr));
+            height: calc(100dvh - var(--hdr));
+            min-height: 520px;
+            max-width: 1700px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .workspace {
+            flex: 1 1 0;
+            min-height: 0;
+            display: grid;
+            gap: 8px;
+            grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+            grid-template-rows: minmax(0, 1fr);
+        }
+        .panel {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            min-width: 0;
+            background: #fff;
+            overflow: hidden;
+        }
+        .panel-scroll { overflow-y: auto; overscroll-behavior: contain; }
+        .sheet-stage {
+            flex: 1 1 0;
+            min-height: 0;
+            position: relative;
+            container-type: size;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(246,243,235,0.7);
+            padding: 6px;
+        }
+        .sheet-stage .notebook-sheet {
+            flex: none;
+            width: min(100%, 60vh);
+            height: auto;
+            aspect-ratio: 1 / 1;
+        }
+        @supports (width: 1cqmin) {
+            .sheet-stage .notebook-sheet { width: 100cqmin; height: 100cqmin; aspect-ratio: auto; }
+        }
+        #threeContainer canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+        /* Pantallas estrechas (móvil en vertical): 3D arriba, cuaderno debajo, ambos a la vez */
+        @media (max-width: 760px), (orientation: portrait) and (max-width: 1000px) {
+            .workspace {
+                grid-template-columns: minmax(0, 1fr);
+                grid-template-rows: minmax(190px, 34%) minmax(0, 1fr);
+            }
+            .sheet-stage { padding: 3px; }
+            body.builder-on .app-shell { height: auto; min-height: calc(100dvh - var(--hdr)); }
+            body.builder-on .workspace { grid-template-rows: auto minmax(560px, 85dvh); }
+            body.builder-on .panel { overflow: visible; }
+            body.builder-on .panel-scroll { flex: 0 0 auto !important; }
+        }
+        /* Modo constructor: el 3D conserva un tamaño decente y el panel de capas hace scroll aparte */
+        body.builder-on .panel-scroll { overflow: hidden; }
+        body.builder-on #threeContainer { flex: 0 0 42% !important; min-height: 210px; }
+        body.builder-on #builderPanel { flex: 1 1 0; min-height: 0; overflow-y: auto; }
+        @media (max-width: 760px), (orientation: portrait) and (max-width: 1000px) {
+            body.builder-on .panel-scroll { overflow: visible; }
+            body.builder-on #threeContainer { flex: 0 0 280px !important; }
+            body.builder-on #builderPanel { flex: none; overflow: visible; }
+        }
+        /* Móvil en horizontal: sin cabeceras de panel para dejar sitio a la lámina */
+        @media (max-height: 500px) {
+            :root { --hdr: 42px; }
+            .panel-hdr, .legend3d { display: none !important; }
+            .sheet-stage { padding: 2px; }
+            .app-shell { min-height: 330px; }
+        }
+        /* Pantallas bajas (portátiles pequeños / móvil en horizontal) */
+        @media (max-height: 640px) and (min-height: 501px) {
+            :root { --hdr: 48px; }
+            .app-shell { padding: 6px; gap: 6px; min-height: 440px; }
+            .workspace { gap: 6px; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col text-black">
+
+    <!-- MODAL DE BIENVENIDA OBLIGATORIO (NOMBRE O CARGAR .JSON) -->
+    <div id="welcomeGateModal" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+        <div class="bg-[#FFF9D2] brutal-border-lg brutal-shadow-lg max-w-lg w-full p-6 space-y-5">
+            <div class="flex items-center gap-3 border-b-4 border-black pb-3">
+                <div class="bg-[#FFE600] brutal-border p-2 -rotate-2">
+                    <span class="text-3xl leading-none">📐</span>
+                </div>
+                <div>
+                    <h2 class="font-heading font-black text-xl sm:text-2xl uppercase">DIÉDRICO LAB 3D</h2>
+                    <p class="font-mono-code text-xs font-extrabold bg-black text-[#FFE600] px-2 py-0.5 inline-block">
+                        IDENTIFICACIÓN OBLIGATORIA • 2º ESO
+                    </p>
+                </div>
+            </div>
+
+            <!-- Opción 1: Nueva sesión con nombre obligatorio -->
+            <div class="bg-white brutal-border p-4 space-y-3">
+                <label class="font-mono-code text-xs font-black uppercase block">
+                    1. ESCRIBE TU NOMBRE Y APELLIDOS PARA EMPEZAR:
+                </label>
+                <input id="gateStudentNameInput" type="text" placeholder="Ej: Lucía Gómez Pérez..."
+                    class="w-full font-mono-code text-sm font-bold bg-[#FFF9D2] px-3 py-2.5 brutal-border-sm focus:outline-none focus:bg-[#00F0FF]/20"
+                    onkeydown="if(event.key==='Enter') confirmWelcomeName()">
+                <p id="gateErrorMsg" class="hidden font-mono-code text-xs font-extrabold text-[#FF6B8B] bg-black px-2 py-1">
+                    ⚠️ Por favor, introduce tu nombre completo antes de continuar.
+                </p>
+                <button onclick="confirmWelcomeName()" class="w-full brutal-btn bg-[#A3E635] brutal-border brutal-shadow py-2.5 px-4 font-heading font-black text-sm uppercase">
+                    🚀 COMENZAR / CONTINUAR PARTIDA
+                </button>
+            </div>
+
+            <!-- Opción 2: Cargar partida desde archivo JSON -->
+            <div class="bg-[#C4B5FD]/40 brutal-border p-4 space-y-2.5">
+                <label class="font-mono-code text-xs font-black uppercase block">
+                    2. ¿TIENES UNA PARTIDA GUARDADA EN ARCHIVO .JSON?
+                </label>
+                <p class="text-xs font-medium text-black/80">
+                    Sube tu archivo <strong>.json</strong> descargado en una sesión anterior para restaurar tu nombre y tus niveles completados:
+                </p>
+                <label class="w-full brutal-btn bg-[#00F0FF] brutal-border-sm brutal-shadow-sm py-2.5 px-4 font-mono-code text-xs font-black uppercase flex items-center justify-center gap-2 cursor-pointer">
+                    📂 CARGAR PARTIDA DESDE ARCHIVO .JSON
+                    <input type="file" accept=".json,application/json" class="hidden" onchange="handleProgressJsonUpload(event)">
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE CONFIRMACIÓN PARA CAMBIAR DE ALUMNO/A -->
+    <div id="resetStudentModal" class="fixed inset-0 z-50 hidden bg-black/80 flex items-center justify-center p-4 no-print">
+        <div class="bg-[#FFF9D2] brutal-border-lg brutal-shadow-lg max-w-md w-full p-6 space-y-4">
+            <div class="flex items-center gap-3 border-b-4 border-black pb-3">
+                <div class="bg-[#FF6B8B] brutal-border p-2 -rotate-2">
+                    <span class="text-2xl leading-none">⚠️</span>
+                </div>
+                <div>
+                    <h3 class="font-heading font-black text-lg uppercase">¿CAMBIAR DE ALUMNO/A?</h3>
+                    <p class="font-mono-code text-xs font-extrabold text-black/80">Aviso importante de pérdida de datos</p>
+                </div>
+            </div>
+            <p class="text-xs sm:text-sm font-bold text-black leading-relaxed bg-white brutal-border-sm p-3">
+                Se borrará la sesión actual de este navegador y <strong>se perderá todo el progreso que no hayas descargado en tu archivo .JSON</strong> (nombre, XP, intentos y niveles superados).
+            </p>
+            <div class="flex flex-wrap items-center justify-end gap-2 pt-2">
+                <button onclick="closeResetStudentModal()" class="brutal-btn bg-white brutal-border-sm brutal-shadow-sm px-4 py-2 font-mono-code text-xs font-black uppercase">
+                    CANCELAR
+                </button>
+                <button onclick="confirmResetStudent()" class="brutal-btn bg-[#FF6B8B] brutal-border brutal-shadow px-4 py-2 font-mono-code text-xs font-black uppercase">
+                    🔄 SÍ, BORRAR Y CAMBIAR
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE REGLAS (antes era un banner que ocupaba media pantalla) -->
+    <div id="quickGuideModal" class="fixed inset-0 z-50 hidden bg-black/80 flex items-center justify-center p-4 no-print">
+        <div class="bg-[#FFF9D2] brutal-border-lg brutal-shadow-lg max-w-lg w-full p-5 space-y-3 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between gap-2 border-b-4 border-black pb-2">
+                <span class="bg-black text-white font-mono-code text-xs font-black px-2 py-0.5 uppercase">REGLAS DEL CUADERNO DIÉDRICO</span>
+                <button onclick="closeGuideModal()" class="brutal-btn bg-white brutal-border-sm px-2 py-0.5 font-mono-code text-xs font-black">✕ CERRAR</button>
+            </div>
+            <ul class="text-xs sm:text-sm font-medium space-y-1.5 list-disc list-inside">
+                <li><strong>1. Pintar Caras / Rampas:</strong> Elige la herramienta <strong>🎨 Caras</strong> o <strong>📐 Rampa</strong> y arrastra sobre la cuadrícula del cuaderno.</li>
+                <li><strong>2. Líneas:</strong> Con <strong>✏️ Líneas</strong>: <strong>1 clic = línea continua</strong> (cambio de altura/plano visible) y <strong>2 clics = discontinua</strong> (arista oculta).</li>
+                <li><strong>3. Niveles:</strong> Empiezas con 5 niveles abiertos. <strong>Por cada 4 que resuelvas se desbloquean 5 más</strong>, así que si te atascas en uno puedes seguir avanzando y volver luego.</li>
+                <li><strong>4. Guardar y Entregar (.JSON):</strong> Descarga tu archivo <strong>💾 .JSON</strong> para guardar tu partida o entregarla al profesor.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- CABECERA COMPACTA -->
+    <header class="sticky top-0 z-40 bg-[#FFE600] border-b-4 border-black px-2 sm:px-4 no-print" style="height: var(--hdr);">
+        <div class="h-full max-w-[1700px] mx-auto flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+                <div class="bg-white brutal-border-sm brutal-shadow-sm p-1 -rotate-2 flex items-center justify-center shrink-0">
+                    <span class="text-lg leading-none">📐</span>
+                </div>
+                <div class="min-w-0">
+                    <h1 class="font-heading font-black text-sm md:text-lg tracking-tight uppercase leading-none truncate">DIÉDRICO LAB 3D</h1>
+                    <p class="hidden md:block text-[10px] font-bold text-black/80 leading-tight truncate">Entrenador de Vistas • 30 niveles • 2º ESO</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <div class="bg-white brutal-border-sm brutal-shadow-sm px-1.5 py-0.5 flex items-center gap-1">
+                    <span class="text-xs">👤</span>
+                    <input id="studentNameInput" type="text" readonly tabindex="-1" placeholder="Sin identificar"
+                        title="El nombre queda fijo al iniciar o cargar partida. Usa 'Cambiar de Alumno/a' para reiniciar."
+                        class="font-mono-code text-[11px] font-extrabold bg-[#E5E7EB] text-black px-1.5 py-0.5 border border-black cursor-not-allowed select-none focus:outline-none w-20 sm:w-32 lg:w-44">
+                </div>
+
+                <div class="bg-[#A3E635] brutal-border-sm brutal-shadow-sm px-1.5 sm:px-2.5 py-0.5 font-mono-code text-[11px] font-extrabold whitespace-nowrap">
+                    ⭐ <span id="xpCounter">0</span><span class="hidden sm:inline"> XP</span>
+                </div>
+
+                <div class="bg-[#00F0FF] brutal-border-sm brutal-shadow-sm px-1.5 sm:px-2.5 py-0.5 font-mono-code text-[11px] font-extrabold whitespace-nowrap">
+                    🏆 <span id="solvedCounter">0 / 30</span>
+                </div>
+
+                <button onclick="downloadProgressJSON()" title="Guardar partida (.JSON)" class="brutal-btn bg-[#A3E635] brutal-border-sm brutal-shadow-sm px-2 py-0.5 font-mono-code text-[11px] font-black uppercase whitespace-nowrap">
+                    💾<span class="hidden xl:inline"> GUARDAR .JSON</span>
+                </button>
+
+                <label title="Cargar partida (.JSON)" class="brutal-btn bg-[#C4B5FD] brutal-border-sm brutal-shadow-sm px-2 py-0.5 font-mono-code text-[11px] font-black uppercase cursor-pointer whitespace-nowrap">
+                    📂<span class="hidden xl:inline"> CARGAR .JSON</span>
+                    <input type="file" accept=".json,application/json" class="hidden" onchange="handleProgressJsonUpload(event)">
+                </label>
+
+                <button onclick="openResetStudentModal()" title="Cambiar de alumno/a" class="brutal-btn bg-[#FF6B8B] brutal-border-sm brutal-shadow-sm px-2 py-0.5 font-mono-code text-[11px] font-black uppercase whitespace-nowrap">
+                    🔄<span class="hidden xl:inline"> CAMBIAR ALUMNO/A</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- CONTENEDOR PRINCIPAL -->
+    <main class="flex-1 w-full">
+        <div class="app-shell">
+
+            <!-- BARRA SUPERIOR: niveles + utilidades (una sola fila compacta) -->
+            <div id="topBar" class="relative shrink-0 no-print">
+                <div class="flex items-stretch gap-2 flex-wrap">
+
+                    <!-- Navegación de niveles -->
+                    <div id="levelsSection" class="flex-1 min-w-[220px] bg-white brutal-border-sm brutal-shadow-sm px-1.5 py-1 flex items-center gap-1.5">
+                        <button onclick="prevLevel()" title="Nivel anterior" class="brutal-btn bg-[#FFE600] brutal-border-sm px-2 py-0.5 font-mono-code text-xs font-black shrink-0">◀</button>
+                        <span id="currentLevelTitle" class="flex-1 min-w-0 truncate font-mono-code text-[11px] sm:text-xs font-extrabold bg-black text-white px-2 py-1 text-center">
+                            NIVEL 1: ESCALÓN 2×2
+                        </span>
+                        <button onclick="nextLevel()" title="Nivel siguiente" class="brutal-btn bg-[#FFE600] brutal-border-sm px-2 py-0.5 font-mono-code text-xs font-black shrink-0">▶</button>
+                        <button onclick="toggleLevelsPopover()" title="Mapa de los 30 niveles" class="brutal-btn bg-[#00F0FF] brutal-border-sm px-2 py-0.5 font-mono-code text-[11px] font-black uppercase shrink-0 whitespace-nowrap">
+                            📋<span class="hidden sm:inline"> NIVELES</span>
+                        </button>
+                    </div>
+
+                    <!-- Banner del modo constructor -->
+                    <div id="builderStudioBanner" class="hidden flex-1 min-w-[220px] bg-[#C4B5FD] brutal-border-sm brutal-shadow-sm px-2 py-1 flex items-center justify-between gap-2 flex-wrap">
+                        <span class="bg-black text-[#FFE600] font-mono-code font-black px-2 py-1 text-[11px] brutal-border-sm">🛠️ MODO ESTUDIO • 2×2 A 6×6</span>
+                        <div class="flex gap-1.5">
+                            <button onclick="fillBuilderSolutionTo2D()" class="brutal-btn bg-[#A3E635] brutal-border-sm px-2 py-1 font-mono-code text-[11px] font-black uppercase whitespace-nowrap">
+                                👁️<span class="hidden sm:inline"> VER SOLUCIÓN 2D</span>
+                            </button>
+                            <button onclick="exitBuilderMode()" class="brutal-btn bg-[#FF6B8B] brutal-border-sm px-2 py-1 font-mono-code text-[11px] font-black uppercase whitespace-nowrap">
+                                🔙<span class="hidden sm:inline"> VOLVER A LOS 30 NIVELES</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Utilidades -->
+                    <div class="hidden sm:flex items-center gap-1.5 bg-[#FFF9D2] brutal-border-sm brutal-shadow-sm px-1.5 py-1">
+                        <button onclick="loadTutorialExample()" title="Tutorial (Ejemplo 0 resuelto)" class="brutal-btn bg-[#C4B5FD] brutal-border-sm px-2 py-0.5 font-mono-code text-[11px] font-extrabold uppercase whitespace-nowrap">
+                            🎓<span class="hidden lg:inline"> TUTORIAL</span>
+                        </button>
+                        <button onclick="generateRandomPiece()" title="Pieza aleatoria" class="brutal-btn bg-[#00F0FF] brutal-border-sm px-2 py-0.5 font-mono-code text-[11px] font-extrabold uppercase whitespace-nowrap">
+                            🎲<span class="hidden lg:inline"> ALEATORIA</span>
+                        </button>
+                        <button onclick="enterBuilderMode()" title="Modo constructor (2×2 a 6×6)" class="brutal-btn bg-[#FFE600] brutal-border-sm px-2 py-0.5 font-mono-code text-[11px] font-extrabold uppercase whitespace-nowrap">
+                            🛠️<span class="hidden lg:inline"> CONSTRUCTOR</span>
+                        </button>
+                        <button onclick="openGuideModal()" title="Reglas del cuaderno" class="brutal-btn bg-white brutal-border-sm px-2 py-0.5 font-mono-code text-[11px] font-extrabold uppercase whitespace-nowrap">
+                            ❓<span class="hidden lg:inline"> REGLAS</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Mapa de niveles desplegable (no empuja el contenido) -->
+                <div id="levelsPopover" class="hidden absolute left-0 right-0 top-full mt-1 z-40 bg-white brutal-border brutal-shadow-lg p-3 space-y-2 max-h-[70vh] overflow-y-auto">
+                    <div class="flex items-center justify-between gap-2 flex-wrap">
+                        <h2 class="font-heading font-black text-xs sm:text-sm uppercase">MAPA DE RETOS PROGRESIVOS (30 NIVELES)</h2>
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span class="font-mono-code text-[10px] font-bold bg-[#A3E635]/40 border border-black px-1.5 py-0.5">N1-N6: 2×2</span>
+                            <span class="font-mono-code text-[10px] font-bold bg-[#00F0FF]/40 border border-black px-1.5 py-0.5">N7-N20: 3×3</span>
+                            <span class="font-mono-code text-[10px] font-bold bg-[#C4B5FD]/60 border border-black px-1.5 py-0.5">N21-N30: 4×4</span>
+                            <button onclick="closeLevelsPopover()" class="brutal-btn bg-white brutal-border-sm px-2 py-0.5 font-mono-code text-[11px] font-black">✕</button>
+                        </div>
+                    </div>
+                    <p id="unlockInfo" class="font-mono-code text-[11px] font-bold bg-[#FFF9D2] border border-black px-2 py-1"></p>
+                    <div class="sm:hidden grid grid-cols-2 gap-1.5">
+                        <button onclick="closeLevelsPopover(); loadTutorialExample()" class="brutal-btn bg-[#C4B5FD] brutal-border-sm px-2 py-1.5 font-mono-code text-[11px] font-extrabold uppercase">🎓 TUTORIAL</button>
+                        <button onclick="closeLevelsPopover(); generateRandomPiece()" class="brutal-btn bg-[#00F0FF] brutal-border-sm px-2 py-1.5 font-mono-code text-[11px] font-extrabold uppercase">🎲 ALEATORIA</button>
+                        <button onclick="closeLevelsPopover(); enterBuilderMode()" class="brutal-btn bg-[#FFE600] brutal-border-sm px-2 py-1.5 font-mono-code text-[11px] font-extrabold uppercase">🛠️ CONSTRUCTOR</button>
+                        <button onclick="closeLevelsPopover(); openGuideModal()" class="brutal-btn bg-white brutal-border-sm px-2 py-1.5 font-mono-code text-[11px] font-extrabold uppercase">❓ REGLAS</button>
+                    </div>
+                    <div id="levelButtonsContainer" class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-10 gap-2"></div>
+                </div>
+            </div>
+
+            <!-- ÁREA DE TRABAJO: VISOR 3D + CUADERNO, SIEMPRE A LA VEZ -->
+            <div id="mainWorkspaceGrid" class="workspace">
+
+                <!-- COLUMNA IZQUIERDA: VISOR 3D (+ constructor) -->
+                <section class="panel brutal-border brutal-shadow">
+                    <div class="panel-hdr hidden sm:flex shrink-0 bg-[#FFE600] px-2 py-1.5 items-center justify-between gap-2" style="border-bottom: 3px solid #000;">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="bg-[#00F0FF] brutal-border-sm px-1.5 py-0.5 font-mono-code font-extrabold text-[11px]">02</span>
+                            <h2 class="font-heading font-black text-xs sm:text-sm uppercase truncate">VISOR 3D</h2>
+                        </div>
+                        <span id="voxelCountBadge" class="bg-black text-[#FFE600] font-mono-code text-[10px] px-2 py-0.5 font-bold whitespace-nowrap">6 PIEZAS</span>
+                    </div>
+
+                    <div class="flex-1 min-h-0 flex flex-col panel-scroll">
+                        <!-- Lienzo Three.js -->
+                        <div class="relative w-full flex-1 min-h-[150px] bg-[#F4EFE6] overflow-hidden" id="threeContainer" style="flex-basis: 0;">
+                            <canvas id="threeCanvas" class="cursor-grab active:cursor-grabbing"></canvas>
+
+                            <div class="legend3d hidden sm:flex absolute top-2 left-2 flex-col gap-1 pointer-events-none">
+                                <div class="bg-[#A3E635] brutal-border-sm px-1.5 py-0.5 font-mono-code text-[10px] font-extrabold">🟢 ALZADO: frente (Z+)</div>
+                                <div class="bg-[#C4B5FD] brutal-border-sm px-1.5 py-0.5 font-mono-code text-[10px] font-extrabold">🟣 PERFIL IZQ.: lado (X−)</div>
+                                <div class="bg-[#FF6B8B] brutal-border-sm px-1.5 py-0.5 font-mono-code text-[10px] font-extrabold">🩷 PLANTA: arriba (Y+)</div>
+                                <div class="bg-[#FBBF24] brutal-border-sm px-1.5 py-0.5 font-mono-code text-[10px] font-extrabold">🟠/🟣 RAMPAS: 2 vistas</div>
+                            </div>
+
+                            <div class="absolute bottom-2 right-2 flex gap-1">
+                                <button onclick="toggleColorAid()" id="colorAidBtn" class="brutal-btn bg-white brutal-border-sm brutal-shadow-sm px-1.5 py-0.5 font-mono-code text-[10px] font-extrabold whitespace-nowrap">
+                                    🎨 COLOR: ON
+                                </button>
+                                <button onclick="toggleWireframeCage()" id="cageBtn" class="brutal-btn bg-white brutal-border-sm brutal-shadow-sm px-1.5 py-0.5 font-mono-code text-[10px] font-extrabold whitespace-nowrap">
+                                    🕸️ DIVISIONES: ON
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Controles de cámara (una fila) -->
+                        <div class="shrink-0 p-1.5 bg-[#FFF9D2] grid grid-cols-4 gap-1.5" style="border-top: 3px solid #000;">
+                            <button onclick="setCameraView('iso')" title="Vista isométrica" class="brutal-btn bg-[#FFE600] brutal-border-sm py-1 px-1 font-mono-code text-[10px] sm:text-xs font-extrabold uppercase">📐 ISO</button>
+                            <button onclick="setCameraView('alzado')" title="Alzado" class="brutal-btn bg-[#A3E635] brutal-border-sm py-1 px-1 font-mono-code text-[10px] sm:text-xs font-extrabold uppercase">🟢 ALZADO</button>
+                            <button onclick="setCameraView('perfil')" title="Perfil izquierdo" class="brutal-btn bg-[#C4B5FD] brutal-border-sm py-1 px-1 font-mono-code text-[10px] sm:text-xs font-extrabold uppercase">🟣 PERFIL</button>
+                            <button onclick="setCameraView('planta')" title="Planta" class="brutal-btn bg-[#FF6B8B] brutal-border-sm py-1 px-1 font-mono-code text-[10px] sm:text-xs font-extrabold uppercase">🩷 PLANTA</button>
+                        </div>
+
+                        <!-- PANEL DEL MODO CONSTRUCTOR -->
+                        <div id="builderPanel" class="hidden shrink-0 p-2 bg-[#C4B5FD]/35 space-y-2" style="border-top: 3px solid #000;">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <span class="font-mono-code text-[11px] font-extrabold uppercase bg-black text-white px-2 py-0.5">🛠️ CUADRÍCULA:</span>
+                                <div class="flex gap-1" id="builderSizeButtons">
+                                    <button onclick="setBuilderGridSize(2)" data-size="2" class="builder-size-btn brutal-btn bg-white brutal-border-sm px-2 py-0.5 font-mono-code text-xs font-black">2×2</button>
+                                    <button onclick="setBuilderGridSize(3)" data-size="3" class="builder-size-btn brutal-btn bg-[#FFE600] brutal-border-sm px-2 py-0.5 font-mono-code text-xs font-black">3×3</button>
+                                    <button onclick="setBuilderGridSize(4)" data-size="4" class="builder-size-btn brutal-btn bg-white brutal-border-sm px-2 py-0.5 font-mono-code text-xs font-black">4×4</button>
+                                    <button onclick="setBuilderGridSize(5)" data-size="5" class="builder-size-btn brutal-btn bg-white brutal-border-sm px-2 py-0.5 font-mono-code text-xs font-black">5×5</button>
+                                    <button onclick="setBuilderGridSize(6)" data-size="6" class="builder-size-btn brutal-btn bg-white brutal-border-sm px-2 py-0.5 font-mono-code text-xs font-black">6×6</button>
+                                </div>
+                            </div>
+
+                            <div class="space-y-1">
+                                <div class="grid grid-cols-3 gap-1.5">
+                                    <button onclick="setBuilderBrush('cube')" id="brush_cube" class="builder-brush-btn brutal-btn bg-[#FFE600] brutal-border-sm py-1.5 px-1 font-mono-code text-[11px] font-black">🧊 CUBOS</button>
+                                    <button onclick="setBuilderBrush('ramp')" id="brush_ramp" class="builder-brush-btn brutal-btn bg-white brutal-border-sm py-1.5 px-1 font-mono-code text-[11px] font-black">📐 RAMPA</button>
+                                    <button onclick="setBuilderBrush('erase')" id="brush_erase" class="builder-brush-btn brutal-btn bg-white brutal-border-sm py-1.5 px-1 font-mono-code text-[11px] font-black">🗑️ BORRAR</button>
+                                </div>
+                                <p id="builderBrushHelp" class="font-mono-code text-[10px] font-bold bg-[#FFF9D2] p-1 border border-black">
+                                    🧊 Modo Cubos: Mantén pulsado y arrastra por la capa para añadir o quitar cubos macizos.
+                                </p>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-2">
+                                <button onclick="fillBuilderSolutionTo2D()" class="brutal-btn bg-[#A3E635] brutal-border-sm px-2 py-1 font-mono-code text-[10px] font-extrabold">👁️ DIBUJAR VISTAS 2D</button>
+                                <button onclick="clearAllVoxels()" class="brutal-btn bg-[#FF6B8B] brutal-border-sm px-2 py-1 font-mono-code text-[10px] font-extrabold">🗑️ VACIAR 3D</button>
+                            </div>
+
+                            <div id="builderLayersContainer" class="grid grid-cols-2 xl:grid-cols-3 gap-2"></div>
+
+                            <div class="bg-white brutal-border-sm p-2 space-y-1.5">
+                                <div class="flex items-center justify-between gap-2 flex-wrap">
+                                    <span class="font-mono-code text-[10px] font-black uppercase bg-[#FFE600] px-1.5 py-0.5 border border-black">📦 CÓDIGO JSON DEL NIVEL</span>
+                                    <div class="flex gap-1">
+                                        <button onclick="copyBuilderLevelJSON()" class="brutal-btn bg-[#A3E635] brutal-border-sm px-2 py-0.5 font-mono-code text-[10px] font-black">📋 COPIAR</button>
+                                        <button onclick="toggleImportJsonBox()" class="brutal-btn bg-[#00F0FF] brutal-border-sm px-2 py-0.5 font-mono-code text-[10px] font-black">📥 CARGAR</button>
+                                    </div>
+                                </div>
+                                <input id="builderCustomTitle" type="text" value="Mi Pieza Personalizada" oninput="updateBuilderJsonExport()"
+                                    class="w-full font-mono-code text-xs font-bold bg-[#FFF9D2] px-2 py-1 border border-black" placeholder="Título del nivel...">
+                                <textarea id="builderJsonOutput" readonly rows="3"
+                                    class="w-full font-mono-code text-[10px] bg-black text-[#A3E635] p-2 border border-black focus:outline-none"></textarea>
+
+                                <div id="importJsonBox" class="hidden space-y-1.5 pt-1 border-t border-black">
+                                    <textarea id="builderJsonInput" rows="2" placeholder='Pega aquí un JSON de nivel...'
+                                        class="w-full font-mono-code text-[10px] bg-[#FFF9D2] p-1.5 border border-black"></textarea>
+                                    <button onclick="importBuilderLevelJSON()" class="brutal-btn bg-[#FFE600] brutal-border-sm px-2 py-1 font-mono-code text-[11px] font-black w-full">
+                                        ✅ APLICAR JSON EN EL CONSTRUCTOR
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- COLUMNA DERECHA: CUADERNO DIÉDRICO -->
+                <section class="panel brutal-border brutal-shadow">
+                    <div class="panel-hdr shrink-0 bg-[#FFE600] px-2 py-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1" style="border-bottom: 3px solid #000;">
+                        <div class="hidden sm:flex items-center gap-2 min-w-0">
+                            <span class="bg-[#A3E635] brutal-border-sm px-1.5 py-0.5 font-mono-code font-extrabold text-[11px]">03</span>
+                            <h2 class="font-heading font-black text-xs sm:text-sm uppercase truncate" title="Lámina diédrica • Sistema europeo (ISO-E)">CUADERNO DIÉDRICO</h2>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-1 font-mono-code text-[10px] font-bold">
+                            <div class="flex items-center gap-1 bg-white border border-black px-1.5 py-0.5">
+                                <span class="w-2 h-2 bg-[#A3E635] border border-black inline-block"></span>
+                                <span class="hidden md:inline">ALZADO:</span><span class="md:hidden">ALZ:</span>
+                                <span id="badgeAlzado" class="font-extrabold">0/9</span>
+                            </div>
+                            <div class="flex items-center gap-1 bg-white border border-black px-1.5 py-0.5">
+                                <span class="w-2 h-2 bg-[#C4B5FD] border border-black inline-block"></span>
+                                <span class="hidden md:inline">PERFIL:</span><span class="md:hidden">PER:</span>
+                                <span id="badgePerfil" class="font-extrabold">0/9</span>
+                            </div>
+                            <div class="flex items-center gap-1 bg-white border border-black px-1.5 py-0.5">
+                                <span class="w-2 h-2 bg-[#FF6B8B] border border-black inline-block"></span>
+                                <span class="hidden md:inline">PLANTA:</span><span class="md:hidden">PLA:</span>
+                                <span id="badgePlanta" class="font-extrabold">0/9</span>
+                            </div>
+                            <span id="viewsStatusBadge" class="bg-white brutal-border-sm px-1.5 py-0.5 font-mono-code text-[10px] font-extrabold whitespace-nowrap">
+                                ⏳ 0/3 VISTAS
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Herramientas 2D (siempre visibles, sin hacer scroll) -->
+                    <div class="shrink-0 bg-[#FFF9D2] px-2 py-1.5 flex items-center gap-1.5 flex-wrap" style="border-bottom: 2px solid #000;">
+                        <button onclick="set2DTool('face')" id="tool2d_face" class="brutal-btn bg-[#00F0FF] brutal-border-sm brutal-shadow-sm px-2 sm:px-3 py-1 font-mono-code text-[11px] sm:text-xs font-black uppercase whitespace-nowrap">
+                            🎨 <span class="hidden sm:inline">1. PINTAR </span>CARAS
+                        </button>
+                        <button onclick="set2DTool('ramp')" id="tool2d_ramp" class="brutal-btn bg-white brutal-border-sm px-2 sm:px-3 py-1 font-mono-code text-[11px] sm:text-xs font-black uppercase whitespace-nowrap">
+                            📐 <span class="hidden sm:inline">2. </span>RAMPA
+                        </button>
+                        <button onclick="set2DTool('edge')" id="tool2d_edge" class="brutal-btn bg-white brutal-border-sm px-2 sm:px-3 py-1 font-mono-code text-[11px] sm:text-xs font-black uppercase whitespace-nowrap">
+                            ✏️ <span class="hidden sm:inline">3. </span>LÍNEAS
+                        </button>
+                        <span id="tool2dHintText" class="hidden lg:block flex-1 min-w-0 truncate font-mono-code text-[10px] font-bold text-black/80">
+                            💡 Mantén pulsado y arrastra para pintar o borrar caras (líneas bloqueadas)
+                        </span>
+                    </div>
+
+                    <!-- Lámina (se ajusta sola al hueco disponible) -->
+                    <div class="sheet-stage">
+                        <!-- Retroalimentación flotante: no desplaza la lámina -->
+                        <div class="absolute left-2 right-2 top-2 z-30 pointer-events-none">
+                            <div id="feedbackBanner" class="hidden brutal-border p-2 font-mono-code text-[11px] sm:text-xs font-bold flex items-center justify-between gap-3 pointer-events-auto">
+                                <span id="feedbackText"></span>
+                                <button onclick="hideFeedback()" class="underline font-extrabold text-xs shrink-0">CERRAR</button>
+                            </div>
+                        </div>
+
+                        <div id="notebookSheet" class="notebook-sheet brutal-border-sm relative shadow-inner">
+                            <svg id="notebookAxesSvg" viewBox="0 0 900 900" class="absolute inset-0 w-full h-full pointer-events-none z-10"></svg>
+
+                            <div id="notebookUnifiedGrid" class="absolute inset-0 w-full h-full grid z-20"
+                                 style="grid-template-columns: 1fr 3fr 1fr 3fr 1fr; grid-template-rows: 1fr 3fr 1fr 3fr 1fr;">
+
+                                <div style="grid-column: 2; grid-row: 1;" class="flex items-end justify-between pb-1 px-0.5 pointer-events-none">
+                                    <span class="bg-[#A3E635] border-2 border-black px-1 py-0 font-mono-code font-black text-[9px] sm:text-[11px] uppercase shadow-[2px_2px_0px_#000]">🟢 ALZADO</span>
+                                    <span class="font-mono-code text-[9px] font-extrabold text-slate-700 bg-white/90 px-1 border border-slate-400">Z+</span>
+                                </div>
+
+                                <div style="grid-column: 4; grid-row: 1;" class="flex items-end justify-between pb-1 px-0.5 pointer-events-none">
+                                    <span class="bg-[#C4B5FD] border-2 border-black px-1 py-0 font-mono-code font-black text-[9px] sm:text-[11px] uppercase shadow-[2px_2px_0px_#000]">🟣 PERFIL IZQ.</span>
+                                    <span class="font-mono-code text-[9px] font-extrabold text-slate-700 bg-white/90 px-1 border border-slate-400">X-</span>
+                                </div>
+
+                                <div style="grid-column: 2; grid-row: 2;" class="relative w-full h-full border-2 border-dashed border-sky-700/70">
+                                    <div id="gridAlzado" class="w-full h-full relative"></div>
+                                </div>
+
+                                <div style="grid-column: 3; grid-row: 1;" class="flex items-start justify-center pt-1 pointer-events-none">
+                                    <span class="bg-[#FFE600] border border-black px-1 font-mono-code text-[9px] font-black">V</span>
+                                </div>
+
+                                <div style="grid-column: 4; grid-row: 2;" class="relative w-full h-full border-2 border-dashed border-sky-700/70">
+                                    <div id="gridPerfil" class="w-full h-full relative"></div>
+                                </div>
+
+                                <div style="grid-column: 1; grid-row: 3;" class="flex items-center justify-start pl-1 pointer-events-none">
+                                    <span class="bg-[#FFE600] border border-black px-1 font-mono-code text-[9px] font-black">L.T.</span>
+                                </div>
+                                <div style="grid-column: 5; grid-row: 3;" class="flex items-center justify-end pr-1 pointer-events-none">
+                                    <span class="bg-[#FFE600] border border-black px-1 font-mono-code text-[9px] font-black">H</span>
+                                </div>
+
+                                <div style="grid-column: 2; grid-row: 4;" class="relative w-full h-full border-2 border-dashed border-sky-700/70">
+                                    <div id="gridPlanta" class="w-full h-full relative"></div>
+                                </div>
+
+                                <div style="grid-column: 2; grid-row: 5;" class="flex items-start justify-between pt-1 px-0.5 pointer-events-none">
+                                    <span class="bg-[#FF6B8B] border-2 border-black px-1 py-0 font-mono-code font-black text-[9px] sm:text-[11px] uppercase shadow-[2px_2px_0px_#000]">🩷 PLANTA</span>
+                                    <span class="font-mono-code text-[9px] font-extrabold text-slate-700 bg-white/90 px-1 border border-slate-400">Y+</span>
+                                </div>
+
+                                <div style="grid-column: 4; grid-row: 5;" class="flex items-start justify-end pt-1 pr-1 pointer-events-none">
+                                    <span class="hidden sm:inline bg-[#FFF9D2] border border-black px-1 py-0 font-mono-code text-[9px] font-extrabold">📐 ABATIMIENTO 45°</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botonera de acciones: siempre visible al pie del cuaderno -->
+                    <div class="shrink-0 bg-[#FFF9D2] px-2 py-1.5 flex items-center justify-between gap-2" style="border-top: 3px solid #000;">
+                        <button onclick="clearStudentGrids()" title="Borrar dibujo" class="brutal-btn bg-white brutal-border-sm brutal-shadow-sm px-2 sm:px-3 py-1.5 font-mono-code text-[11px] sm:text-xs font-extrabold uppercase whitespace-nowrap">
+                            🧹<span class="hidden sm:inline"> BORRAR DIBUJO</span>
+                        </button>
+                        <div id="normalActionButtons" class="flex gap-2">
+                            <button onclick="checkSolution()" class="brutal-btn bg-[#A3E635] brutal-border brutal-shadow px-3 sm:px-5 py-1.5 font-heading font-black text-xs sm:text-sm uppercase tracking-wide whitespace-nowrap">
+                                ✅ COMPROBAR<span class="hidden xl:inline"> VISTAS Y LÍNEAS</span>
+                            </button>
+                            <button onclick="nextLevel()" class="brutal-btn bg-[#00F0FF] brutal-border brutal-shadow px-3 py-1.5 font-heading font-black text-xs sm:text-sm uppercase whitespace-nowrap">
+                                SIGUIENTE ➔
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- Archivo de partida y entrega (queda debajo; también se guarda/carga desde la cabecera) -->
+        <div class="max-w-[1700px] mx-auto px-2 pb-4 sm:px-3">
+        <!-- ÁREA DE GUARDADO Y ENTREGA EN FORMATO JSON -->
+        <section class="bg-white brutal-border brutal-shadow p-4 md:p-6 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b-3 border-black pb-3" style="border-bottom: 3px solid #000;">
+                <div class="flex items-center gap-2">
+                    <span class="bg-[#FF6B8B] brutal-border-sm px-2 py-0.5 font-mono-code font-extrabold text-xs">04</span>
+                    <h2 class="font-heading font-black text-base sm:text-lg uppercase">ARCHIVO DE PARTIDA Y ENTREGA (.JSON)</h2>
+                </div>
+                <span class="font-mono-code text-xs font-bold bg-[#FFF9D2] brutal-border-sm px-2.5 py-1">
+                    Guardado y Entrega Exclusiva en JSON • 2º ESO
+                </span>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+                <div class="lg:col-span-7">
+                    <pre id="reportPreview" class="bg-[#111827] text-[#A3E635] brutal-border-sm p-3 font-mono-code text-xs leading-relaxed overflow-x-auto whitespace-pre-wrap h-full min-h-[160px]"></pre>
+                </div>
+
+                <div class="lg:col-span-5 flex flex-col justify-between gap-3 bg-[#FFF9D2] brutal-border-sm p-4">
+                    <div class="space-y-2">
+                        <h3 class="font-heading font-black text-sm uppercase">💾 GUARDAR O RESTAURAR PARTIDA (.JSON)</h3>
+                        <p class="text-xs font-medium text-black/80">
+                            Descarga tu archivo <strong>.json</strong> para entregárselo al profesor o para cargar tu partida en cualquier ordenador sin perder tus niveles superados.
+                        </p>
+                    </div>
+
+                    <div class="space-y-2.5 no-print">
+                        <button onclick="downloadProgressJSON()" class="w-full brutal-btn bg-[#A3E635] brutal-border brutal-shadow py-3 px-4 font-mono-code text-xs sm:text-sm font-extrabold uppercase flex items-center justify-center gap-2">
+                            💾 DESCARGAR ARCHIVO DE PROGRESO (.JSON)
+                        </button>
+                        <label class="w-full brutal-btn bg-[#00F0FF] brutal-border-sm brutal-shadow-sm py-2.5 px-3 font-mono-code text-xs font-extrabold uppercase flex items-center justify-center gap-2 cursor-pointer">
+                            📂 CARGAR PARTIDA DESDE ARCHIVO (.JSON)
+                            <input type="file" accept=".json,application/json" class="hidden" onchange="handleProgressJsonUpload(event)">
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </section>
+        </div>
+    </main>
+
+    <!-- TOAST DE NOTIFICACIÓN -->
+    <div id="toastNotification" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 hidden bg-[#A3E635] brutal-border brutal-shadow-lg px-4 py-3 font-mono-code text-xs sm:text-sm font-extrabold flex items-center gap-2 no-print">
+        <span id="toastText">✅ ¡Acción completada!</span>
+    </div>
+
+    <!-- PIE DE PÁGINA -->
+    <footer class="bg-black text-white py-3 px-4 font-mono-code font-bold text-xs text-center no-print mt-auto">
+        DIÉDRICO LAB 3D • SISTEMA EUROPEO DE REPRESENTACIÓN • TECNOLOGÍA 2º ESO
+    </footer>
+
+    <script>
+        // =========================================================================
+        // 0. CLAVE SECRETA Y FUNCIONES DE FIRMA CRIPTOGRÁFICA (REUTILIZABLES)
+        // =========================================================================
+        const SECRET_KEY = "DLAB3D_2ESO_TECNO_K9#v8!pQ2$mX7@zL4&wR9*nF5^jH1_2026_SECRET";
+
+        // Implementación síncrona de SHA-256 en JavaScript puro (sin crypto.subtle, compatible con file://)
+        function sha256PureJS(ascii) {
+            const utf8 = unescape(encodeURIComponent(ascii));
+            function rightRotate(value, amount) {
+                return (value >>> amount) | (value << (32 - amount));
+            }
+            const mathPow = Math.pow;
+            const maxWord = mathPow(2, 32);
+            const lengthProperty = 'length';
+            let i, j;
+            let result = '';
+
+            const words = [];
+            const asciiBitLength = utf8[lengthProperty] * 8;
+
+            let hash = [];
+            const k = [];
+            let primeCounter = 0;
+
+            const isComposite = {};
+            for (let candidate = 2; primeCounter < 64; candidate++) {
+                if (!isComposite[candidate]) {
+                    for (i = 0; i < 313; i += candidate) {
+                        isComposite[i] = candidate;
+                    }
+                    hash[primeCounter] = (mathPow(candidate, 0.5) * maxWord) | 0;
+                    k[primeCounter++] = (mathPow(candidate, 1 / 3) * maxWord) | 0;
+                }
+            }
+
+            let str = utf8 + '\x80';
+            while ((str[lengthProperty] % 64) - 56) str += '\x00';
+            for (i = 0; i < str[lengthProperty]; i++) {
+                j = str.charCodeAt(i);
+                if (j >> 8) return '';
+                words[i >> 2] |= j << ((3 - (i % 4)) * 8);
+            }
+            words[words[lengthProperty]] = (asciiBitLength / maxWord) | 0;
+            words[words[lengthProperty]] = asciiBitLength;
+
+            for (j = 0; j < words[lengthProperty]; ) {
+                const w = words.slice(j, (j += 16));
+                const oldHash = hash;
+                hash = hash.slice(0, 8);
+
+                for (i = 0; i < 64; i++) {
+                    const i2 = i + j;
+                    const w15 = w[i - 15], w2 = w[i - 2];
+
+                    const a = hash[0], e = hash[4];
+                    const temp1 =
+                        hash[7] +
+                        (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25)) +
+                        ((e & hash[5]) ^ (~e & hash[6])) +
+                        k[i] +
+                        (w[i] =
+                            i < 16
+                                ? w[i]
+                                : (w[i - 16] +
+                                      (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3)) +
+                                      w[i - 7] +
+                                      (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))) |
+                                  0);
+                    const temp2 =
+                        (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22)) +
+                        ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
+
+                    hash = [(temp1 + temp2) | 0].concat(hash);
+                    hash[4] = (hash[4] + temp1) | 0;
+                }
+
+                for (i = 0; i < 8; i++) {
+                    hash[i] = (hash[i] + oldHash[i]) | 0;
+                }
+            }
+
+            for (i = 0; i < 8; i++) {
+                for (j = 3; j + 1; j--) {
+                    const b = (hash[i] >> (j * 8)) & 255;
+                    result += (b < 16 ? 0 : '') + b.toString(16);
+                }
+            }
+            return result;
+        }
+
+        /**
+         * Calcula la firma de un progreso concatenando en orden fijo:
+         * nombre del alumno (trim, en minúsculas) | xp | intentos | lista ordenada de niveles superados | SECRET_KEY
+         * Fácilmente reutilizable en un verificador externo copiando SECRET_KEY, sha256PureJS y esta función.
+         */
+        function computeProgressSignature(alumno, xp, intentos, nivelesSuperadosIds, secret = SECRET_KEY) {
+            const cleanName = String(alumno || "").trim().toLowerCase();
+            const cleanXp = Math.max(0, parseInt(xp, 10) || 0);
+            const cleanIntentos = Math.max(0, parseInt(intentos, 10) || 0);
+            const sortedIds = Array.isArray(nivelesSuperadosIds)
+                ? [...nivelesSuperadosIds]
+                    .map(n => parseInt(n, 10))
+                    .filter(n => !isNaN(n) && n >= 1 && n <= 30)
+                    .sort((a, b) => a - b)
+                : [];
+            const payload = `${cleanName}|${cleanXp}|${cleanIntentos}|${sortedIds.join(',')}|${secret}`;
+            return sha256PureJS(payload);
+        }
+
+        /**
+         * Verifica si un objeto JSON de progreso contiene una firma válida.
+         */
+        function verifyProgressJSONSignature(data, secret = SECRET_KEY) {
+            if (!data || typeof data !== 'object') return false;
+            const providedSig = typeof data.firma === 'string' ? data.firma.trim().toLowerCase() : '';
+            if (!providedSig) return false;
+
+            const alumnoName = (data.alumno || "").trim();
+            const prog = data.progreso || {};
+            const expectedSig = computeProgressSignature(
+                alumnoName,
+                prog.xp,
+                prog.intentos,
+                prog.nivelesSuperadosIds,
+                secret
+            );
+            return providedSig === expectedSig;
+        }
+
+        // =========================================================================
+        // 1. BANCO DE 30 NIVELES PROGRESIVOS (2×2, 3×3 Y 4×4) + TUTORIAL
+        // =========================================================================
+        const TUTORIAL_PIECE = {
+            id: 0,
+            name: "Ejemplo 0 (Tutorial Resuelto)",
+            size: 3,
+            voxels: [
+                [0,0,0],[1,0,0],[2,0,0], [0,0,1],[1,0,1],[2,0,1], [0,0,2],[1,0,2],[2,0,2],
+                [1,1,0],[2,1,0], [1,1,1],[2,1,1],
+                [2,2,0]
+            ]
+        };
+
+        const LEVELS = [
+            // Niveles 1-6: Iniciación 2×2 (Abiertos a la izquierda X=0 y al frente Z=1, sin líneas ocultas salvo el N6)
+            { id: 1, name: "1. Escalón Frontal (2×2)", size: 2, voxels: [[0,0,0],[1,0,0],[0,0,1],[1,0,1],[0,1,0],[1,1,0]] },
+            { id: 2, name: "2. Escalón Lateral Izq. (2×2)", size: 2, voxels: [[0,0,0],[1,0,0],[0,0,1],[1,0,1],[1,1,0],[1,1,1]] },
+            { id: 3, name: "3. Torre al Fondo Derecha (2×2)", size: 2, voxels: [[0,0,0],[1,0,0],[0,0,1],[1,0,1],[1,1,0]] },
+            { id: 4, name: "4. Rincón Abierto (2×2)", size: 2, voxels: [[0,0,0],[1,0,0],[0,0,1],[1,0,1],[0,1,0],[1,1,0],[1,1,1]] },
+            { id: 5, name: "5. Rampa Frontal (2×2)", size: 2, voxels: [[0,0,0],[1,0,0],[0,0,1],[1,0,1],[0,1,0],[1,1,0],[0,1,1,'ramp_zp',1,0],[1,1,1,'ramp_zp',1,0]] },
+            { id: 6, name: "6. Rampa hacia Izquierda (2×2)", size: 2, voxels: [[0,0,0],[1,0,0],[0,0,1],[1,0,1],[1,1,0],[1,1,1],[0,1,0,'ramp_xn',1,0],[0,1,1,'ramp_xn',1,0]] },
+
+            // Niveles 7-20: Retos 3×3 (Escalonados hacia X=0 izquierda y Z=2 frente para máxima visibilidad y mínimas ocultas)
+            { id: 7, name: "7. Escalón Clásico (3×3)", size: 3, voxels: [[0,0,0],[1,0,0],[2,0,0],[0,0,1],[1,0,1],[2,0,1],[0,1,0],[1,1,0],[2,1,0]] },
+            { id: 8, name: "8. Escalón Lateral Limpio (3×3)", size: 3, voxels: [[0,0,0],[1,0,0],[2,0,0],[0,0,1],[1,0,1],[2,0,1],[0,0,2],[1,0,2],[2,0,2],[1,1,0],[2,1,0],[1,1,1],[2,1,1],[2,2,0],[2,2,1]] },
+            { id: 9, name: "9. Esquina de Tres Alturas", size: 3, voxels: [[0,0,0],[1,0,0],[2,0,0],[0,0,1],[1,0,1],[2,0,1],[0,0,2],[1,0,2],[2,0,2],[1,1,0],[2,1,0],[1,1,1],[2,1,1],[2,2,0]] },
+            { id: 10, name: "10. Escalera Frontal Triple", size: 3, voxels: [[0,0,0],[1,0,0],[2,0,0],[0,0,1],[1,0,1],[2,0,1],[0,0,2],[1,0,2],[2,0,2],[0,1,0],[1,1,0],[2,1,0],[0,1,1],[1,1,1],[2,1,1],[0,2,0],[1,2,0],[2,2,0]] },
+            { id: 11, name: "11. Terraza Abierta Izq.", size: 3, voxels: [[0,0,0],[1,0,0],[2,0,0],[0,0,1],[1,0,1],[2,0,1],[0,0,2],[1,0,2],[2,0,2],[0,1,0],[1,1,0],[2,1,0],[2,1,1],[2,1,2],[2,2,0]] },
+            { id: 12, name: "12. Silla Panorámica", size: 3, voxels: [[0,0,0],[1,0,0],[2,0,0],[0,0,1],[1,0,1],[2,0,1],[0,0,2],[1,0,2],[2,0,2],[0,1,0],[1,1,0],[2,1,0],[1,1,1],[2,1,1],[1,2,0],[2,2,0]] },
+            { id: 13, name: "13. Rampa hacia Izquierda", size: 3, voxels: [[0,0,0],[1,0,0],[2,0,0],[0,0,1],[1,0,1],[2,0,1],[2,1,0],[2,1,1],[0,1,0,'ramp_xn',2,1],[1,1,0,'ramp_xn',2,0],[0,1,1,'ramp_xn',2,1],[1,1,1,'ramp_xn',2,0]] },
+            { id: 14, name: "14. Rampa Frontal Limpia", size: 3, voxels: [[0,0,0],[1,0,0],[2,0,0],[0,0,1],[1,0,1],[2,0,1],[0,0,2],[1,0,2],[2,0,2],[0,1,0],[1,1,0],[2,1,0],[0,1,1,'ramp_zp',2,0],[1,1,1,'ramp_zp',2,0],[2,1,1,'ramp_zp',2,0],[0,1,2,'ramp_zp',2,1],[1,1,2,'ramp_zp',2,1],[2,1,2,'ramp_zp',2,1]] },
+            { id: 15, name: "15. Anfiteatro Abierto", size: 3, voxels: [[0,0,0],[1,0,0],[2,0,0],[0,0,1],[1,0,1],[2,0,1],[0,0,2],[1,0,2],[2,0,2],[0,1,0],[1,1,0],[2,1,0],[1,1,1],[2,1,1],[2,1,2],[1,2,0],[2,2,0],[2,2,1]] },
+            { id: 16, name: "16. Podio Escalonado", size: 3, voxels: [[0,0,0],[1,0,0],[2,0,0],[0,0,1],[1,0,1],[2,0,1],[0,0,2],[1,0,2],[2,0,2],[1,1,0],[2,1,0],[2,1,1],[2,2,0]] },
+            { id: 17, name: "17. Muesca Frontal (1 Oculta)", size: 3, voxels: [[0,0,0],[1,0,0],[2,0,0],[0,0,1],[1,0,1],[2,0,1],[0,1,0],[1,1,0],[2,1,0],[2,1,1],[0,2,0],[2,2,0]] },
+            { id: 18, name: "18. Rampa y Torre Superior", size: 3, voxels: [[0,0,0],[1,0,0],[2,0,0],[0,0,1],[1,0,1],[2,0,1],[0,0,2],[1,0,2],[2,0,2],[0,1,0],[1,1,0],[2,1,0],[0,1,1,'ramp_zp',1,0],[1,1,1,'ramp_zp',1,0],[2,1,1,'ramp_zp',1,0],[1,2,0],[2,2,0]] },
+            { id: 19, name: "19. Balcón Lateral (1 Oculta)", size: 3, voxels: [[0,0,0],[1,0,0],[2,0,0],[0,0,1],[1,0,1],[2,0,1],[0,0,2],[1,0,2],[2,0,2],[0,1,0],[1,1,0],[2,1,0],[1,1,1],[2,1,1],[2,2,0],[2,2,1],[0,2,0]] },
+            { id: 20, name: "20. Rampa Alta en Dos Pisos", size: 3, voxels: [[0,0,0],[1,0,0],[2,0,0],[0,0,1],[1,0,1],[2,0,1],[0,0,2],[1,0,2],[2,0,2],[0,1,0],[1,1,0],[2,1,0],[0,1,1],[1,1,1],[2,1,1],[2,2,0],[2,2,1],[0,2,0,'ramp_xn',2,1],[1,2,0,'ramp_xn',2,0],[0,2,1,'ramp_xn',2,1],[1,2,1,'ramp_xn',2,0]] },
+
+            // Niveles 21-30: Retos Avanzados 4×4 (Orientados a la izquierda X=0 y frente Z=3 para visibilidad limpia)
+            { id: 21, name: "21. Gran Escalera Frontal (4×4)", size: 4, voxels: [
+                [0,0,0],[1,0,0],[2,0,0],[3,0,0],[0,0,1],[1,0,1],[2,0,1],[3,0,1],[0,0,2],[1,0,2],[2,0,2],[3,0,2],[0,0,3],[1,0,3],[2,0,3],[3,0,3],
+                [0,1,0],[1,1,0],[2,1,0],[3,1,0],[0,1,1],[1,1,1],[2,1,1],[3,1,1],[0,1,2],[1,1,2],[2,1,2],[3,1,2],
+                [0,2,0],[1,2,0],[2,2,0],[3,2,0],[0,2,1],[1,2,1],[2,2,1],[3,2,1],
+                [0,3,0],[1,3,0],[2,3,0],[3,3,0]
+            ]},
+            { id: 22, name: "22. Gran Escalera Izquierda (4×4)", size: 4, voxels: [
+                [0,0,0],[1,0,0],[2,0,0],[3,0,0],[0,0,1],[1,0,1],[2,0,1],[3,0,1],[0,0,2],[1,0,2],[2,0,2],[3,0,2],[0,0,3],[1,0,3],[2,0,3],[3,0,3],
+                [1,1,0],[2,1,0],[3,1,0],[1,1,1],[2,1,1],[3,1,1],[1,1,2],[2,1,2],[3,1,2],[1,1,3],[2,1,3],[3,1,3],
+                [2,2,0],[3,2,0],[2,2,1],[3,2,1],[2,2,2],[3,2,2],[2,2,3],[3,2,3],
+                [3,3,0],[3,3,1],[3,3,2],[3,3,3]
+            ]},
+            { id: 23, name: "23. Zigurat Abierto Izq. (4×4)", size: 4, voxels: [
+                [0,0,0],[1,0,0],[2,0,0],[3,0,0],[0,0,1],[1,0,1],[2,0,1],[3,0,1],[0,0,2],[1,0,2],[2,0,2],[3,0,2],[0,0,3],[1,0,3],[2,0,3],[3,0,3],
+                [1,1,0],[2,1,0],[3,1,0],[1,1,1],[2,1,1],[3,1,1],[1,1,2],[2,1,2],[3,1,2],
+                [2,2,0],[3,2,0],[2,2,1],[3,2,1],
+                [3,3,0]
+            ]},
+            { id: 24, name: "24. Anfiteatro en L (4×4)", size: 4, voxels: [
+                [0,0,0],[1,0,0],[2,0,0],[3,0,0],[0,0,1],[1,0,1],[2,0,1],[3,0,1],[0,0,2],[1,0,2],[2,0,2],[3,0,2],[0,0,3],[1,0,3],[2,0,3],[3,0,3],
+                [0,1,0],[1,1,0],[2,1,0],[3,1,0],[2,1,1],[3,1,1],[2,1,2],[3,1,2],[2,1,3],[3,1,3],
+                [1,2,0],[2,2,0],[3,2,0],[3,2,1],[3,2,2],
+                [2,3,0],[3,3,0],[3,3,1]
+            ]},
+            { id: 25, name: "25. Gran Rampa Frontal (4×4)", size: 4, voxels: [
+                [0,0,0],[1,0,0],[2,0,0],[3,0,0],[0,0,1],[1,0,1],[2,0,1],[3,0,1],[0,0,2],[1,0,2],[2,0,2],[3,0,2],[0,0,3],[1,0,3],[2,0,3],[3,0,3],
+                [0,1,0],[1,1,0],[2,1,0],[3,1,0],
+                [0,1,1,'ramp_zp',2,0],[1,1,1,'ramp_zp',2,0],[2,1,1,'ramp_zp',2,0],[3,1,1,'ramp_zp',2,0],
+                [0,1,2,'ramp_zp',2,1],[1,1,2,'ramp_zp',2,1],[2,1,2,'ramp_zp',2,1],[3,1,2,'ramp_zp',2,1],
+                [2,2,0],[3,2,0]
+            ]},
+            { id: 26, name: "26. Tejado hacia Izquierda (4×4)", size: 4, voxels: [
+                [0,0,0],[1,0,0],[2,0,0],[3,0,0],[0,0,1],[1,0,1],[2,0,1],[3,0,1],[0,0,2],[1,0,2],[2,0,2],[3,0,2],
+                [3,1,0],[3,1,1],[3,1,2],
+                [0,1,0,'ramp_xn',3,2],[1,1,0,'ramp_xn',3,1],[2,1,0,'ramp_xn',3,0],
+                [0,1,1,'ramp_xn',3,2],[1,1,1,'ramp_xn',3,1],[2,1,1,'ramp_xn',3,0],
+                [0,1,2,'ramp_xn',3,2],[1,1,2,'ramp_xn',3,1],[2,1,2,'ramp_xn',3,0],
+                [3,2,0],[3,2,1]
+            ]},
+            { id: 27, name: "27. Mirador Escalonado (4×4)", size: 4, voxels: [
+                [0,0,0],[1,0,0],[2,0,0],[3,0,0],[0,0,1],[1,0,1],[2,0,1],[3,0,1],[0,0,2],[1,0,2],[2,0,2],[3,0,2],[0,0,3],[1,0,3],[2,0,3],[3,0,3],
+                [0,1,0],[1,1,0],[2,1,0],[3,1,0],[1,1,1],[2,1,1],[3,1,1],[2,1,2],[3,1,2],
+                [1,2,0],[2,2,0],[3,2,0],[2,2,1],[3,2,1],
+                [2,3,0],[3,3,0]
+            ]},
+            { id: 28, name: "28. Almenas Laterales (1 Oculta)", size: 4, voxels: [
+                [0,0,0],[1,0,0],[2,0,0],[3,0,0],[0,0,1],[1,0,1],[2,0,1],[3,0,1],[0,0,2],[1,0,2],[2,0,2],[3,0,2],
+                [0,1,0],[1,1,0],[2,1,0],[3,1,0],[1,1,1],[2,1,1],[3,1,1],
+                [1,2,0],[2,2,0],[3,2,0],[3,2,1],
+                [1,3,0],[3,3,0]
+            ]},
+            { id: 29, name: "29. Terraza con Rampa Superior (4×4)", size: 4, voxels: [
+                [0,0,0],[1,0,0],[2,0,0],[3,0,0],[0,0,1],[1,0,1],[2,0,1],[3,0,1],[0,0,2],[1,0,2],[2,0,2],[3,0,2],[0,0,3],[1,0,3],[2,0,3],[3,0,3],
+                [0,1,0],[1,1,0],[2,1,0],[3,1,0],[0,1,1],[1,1,1],[2,1,1],[3,1,1],[0,1,2],[1,1,2],[2,1,2],[3,1,2],
+                [0,2,0],[1,2,0],[2,2,0],[3,2,0],
+                [0,2,1,'ramp_zp',2,0],[1,2,1,'ramp_zp',2,0],[2,2,1,'ramp_zp',2,0],[3,2,1,'ramp_zp',2,0],
+                [0,2,2,'ramp_zp',2,1],[1,2,2,'ramp_zp',2,1],[2,2,2,'ramp_zp',2,1],[3,2,2,'ramp_zp',2,1],
+                [2,3,0],[3,3,0]
+            ]},
+            { id: 30, name: "30. Gran Reto Maestro 4×4", size: 4, voxels: [
+                [0,0,0],[1,0,0],[2,0,0],[3,0,0],[0,0,1],[1,0,1],[2,0,1],[3,0,1],[0,0,2],[1,0,2],[2,0,2],[3,0,2],[0,0,3],[1,0,3],[2,0,3],[3,0,3],
+                [0,1,0],[1,1,0],[2,1,0],[3,1,0],[0,1,1],[1,1,1],[2,1,1],[3,1,1],[0,1,2],[1,1,2],[2,1,2],[3,1,2],
+                [1,2,0],[2,2,0],[3,2,0],[1,2,1],[2,2,1],[3,2,1],
+                [3,3,0],[3,3,1],[1,3,0,'ramp_xn',2,1],[2,3,0,'ramp_xn',2,0],[1,3,1,'ramp_xn',2,1],[2,3,1,'ramp_xn',2,0]
+            ]}
+        ];
+
+        // =========================================================================
+        // 2. ESTADO GLOBAL DE LA APLICACIÓN
+        // =========================================================================
+        function createEmptyMatrix(N) {
+            return Array.from({ length: N }, () => Array(N).fill(false));
+        }
+
+        function createEmptyEdges(N) {
+            return {
+                h: Array.from({ length: Math.max(1, N - 1) }, () => Array(N).fill(0)),
+                v: Array.from({ length: N }, () => Array(Math.max(1, N - 1)).fill(0))
+            };
+        }
+
+        const state = {
+            currentLevelIndex: 0,
+            isTutorialPiece: false,
+            gridSize: 2,
+            activeVoxels: new Map(),
+            builderMode: false,
+            builderGridSize: 3,
+            builderBrush: 'cube',
+            builderVoxels: new Map(),
+            tool2D: 'face',
+            colorAid: true,
+            showCage: true,
+            xp: 0,
+            attempts: 0,
+            solvedLevels: new Set(),
+            studentViews: {
+                alzado: createEmptyMatrix(2),
+                perfil: createEmptyMatrix(2),
+                planta: createEmptyMatrix(2)
+            },
+            studentEdges: {
+                alzado: createEmptyEdges(2),
+                perfil: createEmptyEdges(2),
+                planta: createEmptyEdges(2)
+            },
+            drag: {
+                active: false,
+                mode: null,
+                viewKey: null,
+                paintValue: true,
+                edgeOrient: null,
+                edgeFixedIndex: null,
+                edgeValue: 0,
+                rampStartR: null,
+                rampStartC: null,
+                rampStartZone: null,
+                builderLayerY: null,
+                builderAction: true,
+                builderRampStartX: null,
+                builderRampStartZ: null,
+                builderRampStartSide: null
+            }
+        };
+
+        function normalizeVoxelData(raw) {
+            if (!raw) return null;
+            if (typeof raw === 'string') return { type: raw, span: 1, index: 0 };
+            if (typeof raw === 'object' && raw.type) {
+                return { type: raw.type, span: raw.span || 1, index: raw.index || 0 };
+            }
+            return { type: 'cube', span: 1, index: 0 };
+        }
+
+        function getVoxelObj(mapRef, x, y, z) {
+            return normalizeVoxelData(mapRef.get(`${x},${y},${z}`));
+        }
+
+        function populateVoxelMapFromList(mapRef, list) {
+            mapRef.clear();
+            list.forEach(item => {
+                const x = item[0], y = item[1], z = item[2];
+                const type = item[3] || 'cube';
+                const span = item[4] || 1;
+                const index = item[5] || 0;
+                mapRef.set(`${x},${y},${z}`, { type, span, index });
+            });
+        }
+
+        // =========================================================================
+        // 3. IDENTIFICACIÓN OBLIGATORIA Y GUARDADO/CARGA EN ARCHIVO .JSON
+        // =========================================================================
+        function buildProgressJSONObject() {
+            const nameInput = document.getElementById('studentNameInput');
+            const studentName = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : "";
+            const solvedArr = Array.from(state.solvedLevels)
+                .filter(id => typeof id === 'number' && id >= 1 && id <= LEVELS.length)
+                .sort((a, b) => a - b);
+
+            const firma = computeProgressSignature(studentName, state.xp, state.attempts, solvedArr);
+
+            return {
+                app: "DIEDRICO_LAB_3D",
+                curso: "2º ESO Tecnología",
+                version: "3.0",
+                fechaGuardado: new Date().toLocaleString('es-ES'),
+                alumno: studentName,
+                progreso: {
+                    xp: state.xp,
+                    intentos: state.attempts,
+                    nivelesTotales: LEVELS.length,
+                    nivelesSuperadosCount: solvedArr.length,
+                    nivelesDesbloqueados: getUnlockedCount(solvedArr.length),
+                    nivelesSuperadosIds: solvedArr,
+                    nivelActual: state.currentLevelIndex + 1
+                },
+                firma: firma
+            };
+        }
+
+        function confirmWelcomeName() {
+            const gateInput = document.getElementById('gateStudentNameInput');
+            const errEl = document.getElementById('gateErrorMsg');
+            const headerInput = document.getElementById('studentNameInput');
+            const modal = document.getElementById('welcomeGateModal');
+
+            const enteredName = gateInput ? gateInput.value.trim() : "";
+            if (!enteredName || enteredName.length < 2) {
+                if (errEl) errEl.classList.remove('hidden');
+                if (gateInput) gateInput.focus();
+                return;
+            }
+
+            if (errEl) errEl.classList.add('hidden');
+            if (headerInput) headerInput.value = enteredName;
+            if (modal) modal.classList.add('hidden');
+
+            saveToLocalStorage();
+            updateReportPreview();
+            showToast(`👋 ¡Bienvenido/a, ${enteredName}!`);
+        }
+
+        function checkWelcomeGateOnStart() {
+            const headerInput = document.getElementById('studentNameInput');
+            const gateInput = document.getElementById('gateStudentNameInput');
+            const modal = document.getElementById('welcomeGateModal');
+
+            const currentName = headerInput ? headerInput.value.trim() : "";
+            if (currentName && currentName.length >= 2) {
+                if (gateInput) gateInput.value = currentName;
+                if (modal) modal.classList.add('hidden');
+            } else {
+                if (modal) modal.classList.remove('hidden');
+            }
+        }
+
+        function downloadProgressJSON() {
+            const nameInput = document.getElementById('studentNameInput');
+            const studentName = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : "";
+            if (!studentName) {
+                const modal = document.getElementById('welcomeGateModal');
+                if (modal) modal.classList.remove('hidden');
+                showToast("⚠️ Escribe tu nombre antes de descargar el archivo .JSON");
+                return;
+            }
+
+            const dataObj = buildProgressJSONObject();
+            const jsonString = JSON.stringify(dataObj, null, 2);
+            const cleanFileName = studentName
+                .toLowerCase()
+                .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9]+/g, "_")
+                .replace(/^_|_$/g, "") || "alumno";
+
+            const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `diedrico_lab_${cleanFileName}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast("💾 Archivo .JSON de progreso descargado");
+        }
+
+        function handleProgressJsonUpload(event) {
+            const file = event.target && event.target.files ? event.target.files[0] : null;
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    const result = applyProgressFromJSONObject(parsed);
+                    if (result.ok) {
+                        const modal = document.getElementById('welcomeGateModal');
+                        if (modal) modal.classList.add('hidden');
+                        showToast(result.msg);
+                    } else {
+                        showFeedback(`❌ ${result.msg}`, "bg-[#FF6B8B]");
+                        showToast(`❌ ${result.msg}`);
+                    }
+                } catch (err) {
+                    showFeedback("❌ Este archivo ha sido modificado o no es válido", "bg-[#FF6B8B]");
+                    showToast("❌ Este archivo ha sido modificado o no es válido");
+                }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function applyProgressFromJSONObject(data) {
+            if (!data || typeof data !== 'object' || !verifyProgressJSONSignature(data)) {
+                return { ok: false, msg: "Este archivo ha sido modificado o no es válido" };
+            }
+
+            const alumnoName = (data.alumno || "").trim();
+            const prog = data.progreso || {};
+
+            if (!alumnoName) {
+                return { ok: false, msg: "Este archivo ha sido modificado o no es válido" };
+            }
+
+            const headerInput = document.getElementById('studentNameInput');
+            const gateInput = document.getElementById('gateStudentNameInput');
+            if (headerInput) headerInput.value = alumnoName;
+            if (gateInput) gateInput.value = alumnoName;
+
+            state.xp = Math.max(0, parseInt(prog.xp, 10) || 0);
+            state.attempts = Math.max(0, parseInt(prog.intentos, 10) || 0);
+
+            state.solvedLevels.clear();
+            const solvedArray = Array.isArray(prog.nivelesSuperadosIds) ? prog.nivelesSuperadosIds : [];
+
+            solvedArray.forEach(id => {
+                const numId = parseInt(id, 10);
+                if (!isNaN(numId) && numId >= 1 && numId <= LEVELS.length) {
+                    state.solvedLevels.add(numId);
+                }
+            });
+
+            updateHeaderCounters();
+            renderLevelButtons();
+            updateReportPreview();
+            saveToLocalStorage();
+
+            const firstPending = LEVELS.findIndex(lvl => !state.solvedLevels.has(lvl.id));
+            if (!state.builderMode) {
+                if (firstPending !== -1) loadLevel(firstPending);
+                else loadLevel(0);
+            }
+
+            return {
+                ok: true,
+                msg: `✅ Partida de ${alumnoName} cargada (${state.solvedLevels.size}/${LEVELS.length} niveles)`
+            };
+        }
+
+        function openResetStudentModal() {
+            const modal = document.getElementById('resetStudentModal');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeResetStudentModal() {
+            const modal = document.getElementById('resetStudentModal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function confirmResetStudent() {
+            closeResetStudentModal();
+            try {
+                localStorage.removeItem('diedrico_lab_json_v3');
+            } catch (e) {}
+
+            if (state.builderMode) {
+                state.builderMode = false;
+                document.body.classList.remove('builder-on');
+                const levelsSec = document.getElementById('levelsSection');
+                const studioBanner = document.getElementById('builderStudioBanner');
+                const builderPanel = document.getElementById('builderPanel');
+                if (levelsSec) levelsSec.classList.remove('hidden');
+                if (studioBanner) studioBanner.classList.add('hidden');
+                if (builderPanel) builderPanel.classList.add('hidden');
+            }
+
+            state.xp = 0;
+            state.attempts = 0;
+            state.solvedLevels.clear();
+            state.currentLevelIndex = 0;
+            state.isTutorialPiece = false;
+
+            const headerInput = document.getElementById('studentNameInput');
+            const gateInput = document.getElementById('gateStudentNameInput');
+            const errEl = document.getElementById('gateErrorMsg');
+            if (headerInput) headerInput.value = '';
+            if (gateInput) gateInput.value = '';
+            if (errEl) errEl.classList.add('hidden');
+
+            loadLevel(0);
+            updateHeaderCounters();
+            renderLevelButtons();
+            updateReportPreview();
+
+            const welcomeModal = document.getElementById('welcomeGateModal');
+            if (welcomeModal) welcomeModal.classList.remove('hidden');
+            if (gateInput) gateInput.focus();
+            showToast("🔄 Sesión reiniciada para nuevo/a alumno/a");
+        }
+
+        function saveToLocalStorage() {
+            try {
+                const payload = buildProgressJSONObject();
+                localStorage.setItem('diedrico_lab_json_v3', JSON.stringify(payload));
+            } catch (e) {}
+        }
+
+        function restoreFromLocalStorage() {
+            try {
+                const raw = localStorage.getItem('diedrico_lab_json_v3');
+                if (!raw) return;
+                const data = JSON.parse(raw);
+                if (data && data.alumno) {
+                    applyProgressFromJSONObject(data);
+                }
+            } catch (e) {}
+        }
+
+        // =========================================================================
+        // 4. MOTOR 3D ORTOGRÁFICO (THREE.JS + GEOMETRÍA CONTINUA + RAMPAS)
+        // =========================================================================
+        let scene, camera, renderer, voxelGroup, cageGroup;
+        let isDragging3D = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let spherical = { radius: 13, theta: -Math.PI / 4, phi: Math.atan(1 / Math.sqrt(2)) };
+        let targetSpherical = { radius: 13, theta: -Math.PI / 4, phi: Math.atan(1 / Math.sqrt(2)) };
+
+        const COLOR_ALZADO = 0xA3E635;
+        const COLOR_PERFIL = 0xC4B5FD;
+        const COLOR_PLANTA = 0xFF6B8B;
+        const COLOR_RAMP_ALZADO_PLANTA = 0xFBBF24;
+        const COLOR_RAMP_PERFIL_PLANTA = 0xE879F9;
+        const COLOR_RAMP_OTHER_PLANTA = 0xFDA4AF;
+        const COLOR_NEUTRAL = 0xF4EFE6;
+
+        function initThreeJS() {
+            const container = document.getElementById('threeContainer');
+            const canvas = document.getElementById('threeCanvas');
+            if (!container || !canvas) return;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xF4EFE6);
+
+            const width = container.clientWidth || 400;
+            const height = container.clientHeight || 380;
+            const aspect = width / height;
+            const frustumSize = 5.4;
+
+            camera = new THREE.OrthographicCamera(
+                (frustumSize * aspect) / -2,
+                (frustumSize * aspect) / 2,
+                frustumSize / 2,
+                frustumSize / -2,
+                0.1,
+                100
+            );
+            updateCameraPosition(true);
+
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+            renderer.setSize(width, height, false);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.95));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.15);
+            dirLight.position.set(6, 12, 8);
+            scene.add(dirLight);
+
+            voxelGroup = new THREE.Group();
+            scene.add(voxelGroup);
+
+            cageGroup = new THREE.Group();
+            scene.add(cageGroup);
+
+            canvas.addEventListener('mousedown', (e) => {
+                isDragging3D = true;
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+            window.addEventListener('mouseup', () => {
+                isDragging3D = false;
+                if (state.drag.active) {
+                    state.drag.active = false;
+                    state.drag.mode = null;
+                }
+            });
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging3D) return;
+                const dx = e.clientX - previousMousePosition.x;
+                const dy = e.clientY - previousMousePosition.y;
+                targetSpherical.theta -= dx * 0.01;
+                targetSpherical.phi = Math.max(0, Math.min(Math.PI / 2 - 0.0001, targetSpherical.phi + dy * 0.01));
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+
+            canvas.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    isDragging3D = true;
+                    previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                }
+            }, { passive: true });
+            window.addEventListener('touchend', () => { isDragging3D = false; });
+            window.addEventListener('touchmove', (e) => {
+                if (!isDragging3D || e.touches.length !== 1) return;
+                const dx = e.touches[0].clientX - previousMousePosition.x;
+                const dy = e.touches[0].clientY - previousMousePosition.y;
+                targetSpherical.theta -= dx * 0.01;
+                targetSpherical.phi = Math.max(0, Math.min(Math.PI / 2 - 0.0001, targetSpherical.phi + dy * 0.01));
+                previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }, { passive: true });
+
+            window.addEventListener('resize', onWindowResize);
+            if (window.ResizeObserver) new ResizeObserver(() => onWindowResize()).observe(container);
+            animateThree();
+        }
+
+        function updateCameraPosition(immediate = false) {
+            if (!camera) return;
+            if (immediate) {
+                spherical.theta = targetSpherical.theta;
+                spherical.phi = targetSpherical.phi;
+            } else {
+                spherical.theta += (targetSpherical.theta - spherical.theta) * 0.16;
+                spherical.phi += (targetSpherical.phi - spherical.phi) * 0.16;
+            }
+            const r = spherical.radius;
+            camera.position.x = r * Math.cos(spherical.phi) * Math.sin(spherical.theta);
+            camera.position.y = r * Math.sin(spherical.phi);
+            camera.position.z = r * Math.cos(spherical.phi) * Math.cos(spherical.theta);
+            camera.lookAt(0, 0, 0);
+        }
+
+        function setCameraView(viewName) {
+            if (viewName === 'iso') {
+                targetSpherical.theta = -Math.PI / 4;
+                targetSpherical.phi = Math.atan(1 / Math.sqrt(2));
+            } else if (viewName === 'alzado') {
+                targetSpherical.theta = 0;
+                targetSpherical.phi = 0;
+            } else if (viewName === 'perfil') {
+                targetSpherical.theta = -Math.PI / 2;
+                targetSpherical.phi = 0;
+            } else if (viewName === 'planta') {
+                targetSpherical.theta = 0;
+                targetSpherical.phi = Math.PI / 2 - 0.0001;
+            }
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('threeContainer');
+            if (!container || !renderer || !camera) return;
+            const width = container.clientWidth || 400;
+            const height = container.clientHeight || 380;
+            const aspect = width / height;
+            const N = state.gridSize || 3;
+            const baseFrustum = Math.max(4.6, N * 1.65);
+            const frustumSize = aspect < 1 ? baseFrustum / aspect : baseFrustum;
+
+            camera.left = (-frustumSize * aspect) / 2;
+            camera.right = (frustumSize * aspect) / 2;
+            camera.top = frustumSize / 2;
+            camera.bottom = -frustumSize / 2;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height, false);
+        }
+
+        function animateThree() {
+            requestAnimationFrame(animateThree);
+            updateCameraPosition(false);
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        }
+
+        function createWedgeMesh(rampType, colorAid, span = 1, index = 0) {
+            const group = new THREE.Group();
+            const hHigh = 0.5 - (index / span);
+            const hLow = 0.5 - ((index + 1) / span);
+            const b = -0.5;
+
+            let p_xnynzn = [-0.5, hHigh, -0.5];
+            let p_xpynzn = [ 0.5, hHigh, -0.5];
+            let p_xpypzn = [ 0.5, hHigh,  0.5];
+            let p_xnypzn = [-0.5, hHigh,  0.5];
+
+            if (rampType === 'ramp_zp') {
+                p_xnynzn = [-0.5, hHigh, -0.5];
+                p_xpynzn = [ 0.5, hHigh, -0.5];
+                p_xpypzn = [ 0.5, hLow,   0.5];
+                p_xnypzn = [-0.5, hLow,   0.5];
+            } else if (rampType === 'ramp_zn') {
+                p_xnynzn = [-0.5, hLow,  -0.5];
+                p_xpynzn = [ 0.5, hLow,  -0.5];
+                p_xpypzn = [ 0.5, hHigh,  0.5];
+                p_xnypzn = [-0.5, hHigh,  0.5];
+            } else if (rampType === 'ramp_xp') {
+                p_xnynzn = [-0.5, hHigh, -0.5];
+                p_xpynzn = [ 0.5, hLow,  -0.5];
+                p_xpypzn = [ 0.5, hLow,   0.5];
+                p_xnypzn = [-0.5, hHigh,  0.5];
+            } else if (rampType === 'ramp_xn') {
+                p_xnynzn = [-0.5, hLow,  -0.5];
+                p_xpynzn = [ 0.5, hHigh, -0.5];
+                p_xpypzn = [ 0.5, hHigh,  0.5];
+                p_xnypzn = [-0.5, hLow,   0.5];
+            }
+
+            const b_xnz = [-0.5, b, -0.5];
+            const b_xpz = [ 0.5, b, -0.5];
+            const b_xpzp = [ 0.5, b,  0.5];
+            const b_xnzp = [-0.5, b,  0.5];
+
+            let slopeColor = COLOR_RAMP_OTHER_PLANTA;
+            if (!colorAid) {
+                slopeColor = COLOR_NEUTRAL;
+            } else if (rampType === 'ramp_zp') {
+                slopeColor = COLOR_RAMP_ALZADO_PLANTA;
+            } else if (rampType === 'ramp_xn') {
+                slopeColor = COLOR_RAMP_PERFIL_PLANTA;
+            } else {
+                slopeColor = COLOR_RAMP_OTHER_PLANTA;
+            }
+
+            const colFront = colorAid ? COLOR_ALZADO : COLOR_NEUTRAL;
+            const colLeft  = colorAid ? COLOR_PERFIL : COLOR_NEUTRAL;
+            const colNeutral = COLOR_NEUTRAL;
+
+            function addQuadOrTri(pts, hexColor) {
+                const valid = pts.filter((pt, i, arr) => {
+                    for (let j = 0; j < i; j++) {
+                        if (Math.hypot(pt[0]-arr[j][0], pt[1]-arr[j][1], pt[2]-arr[j][2]) < 1e-4) return false;
+                    }
+                    return true;
+                });
+                if (valid.length < 3) return;
+                const geom = new THREE.BufferGeometry();
+                let vertices = [];
+                if (valid.length === 3) {
+                    vertices = [...valid[0], ...valid[1], ...valid[2]];
+                } else if (valid.length === 4) {
+                    vertices = [
+                        ...valid[0], ...valid[1], ...valid[2],
+                        ...valid[0], ...valid[2], ...valid[3]
+                    ];
+                }
+                geom.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+                geom.computeVertexNormals();
+                const mat = new THREE.MeshBasicMaterial({
+                    color: hexColor,
+                    side: THREE.DoubleSide,
+                    polygonOffset: true,
+                    polygonOffsetFactor: 1,
+                    polygonOffsetUnits: 1
+                });
+                group.add(new THREE.Mesh(geom, mat));
+            }
+
+            addQuadOrTri([p_xnynzn, p_xnypzn, p_xpypzn, p_xpynzn], slopeColor);
+            addQuadOrTri([b_xnz, b_xpz, b_xpzp, b_xnzp], colNeutral);
+            addQuadOrTri([b_xnzp, b_xpzp, p_xpypzn, p_xnypzn], colFront);
+            addQuadOrTri([b_xpz, b_xnz, p_xnynzn, p_xpynzn], colNeutral);
+            addQuadOrTri([b_xnz, b_xnzp, p_xnypzn, p_xnynzn], colLeft);
+            addQuadOrTri([b_xpzp, b_xpz, p_xpynzn, p_xpypzn], colNeutral);
+
+            return group;
+        }
+
+        function render3DVoxels() {
+            if (!voxelGroup || !cageGroup) return;
+            while (voxelGroup.children.length > 0) voxelGroup.remove(voxelGroup.children[0]);
+            while (cageGroup.children.length > 0) cageGroup.remove(cageGroup.children[0]);
+
+            onWindowResize();
+
+            const N = state.gridSize;
+            const offset = (N - 1) / 2;
+
+            const countBadge = document.getElementById('voxelCountBadge');
+            if (countBadge) countBadge.textContent = `${state.activeVoxels.size} PIEZAS (${N}×${N}×${N})`;
+
+            const hasFullCubeAt = (x, y, z) => {
+                const v = getVoxelObj(state.activeVoxels, x, y, z);
+                return v && v.type === 'cube';
+            };
+
+            const boxGeo = new THREE.BoxGeometry(1.0, 1.0, 1.0);
+
+            state.activeVoxels.forEach((rawType, key) => {
+                const [x, y, z] = key.split(',').map(Number);
+                const vObj = normalizeVoxelData(rawType);
+                const vType = vObj.type;
+                const vSpan = vObj.span || 1;
+                const vIdx = vObj.index || 0;
+                const posX = x - offset;
+                const posY = y - offset;
+                const posZ = z - offset;
+
+                if (vType === 'cube') {
+                    const materials = [
+                        new THREE.MeshBasicMaterial({ color: COLOR_NEUTRAL, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }),
+                        new THREE.MeshBasicMaterial({ color: (!hasFullCubeAt(x - 1, y, z) && state.colorAid) ? COLOR_PERFIL : COLOR_NEUTRAL, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }),
+                        new THREE.MeshBasicMaterial({ color: (!hasFullCubeAt(x, y + 1, z) && state.colorAid) ? COLOR_PLANTA : COLOR_NEUTRAL, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }),
+                        new THREE.MeshBasicMaterial({ color: COLOR_NEUTRAL, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }),
+                        new THREE.MeshBasicMaterial({ color: (!hasFullCubeAt(x, y, z + 1) && state.colorAid) ? COLOR_ALZADO : COLOR_NEUTRAL, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }),
+                        new THREE.MeshBasicMaterial({ color: COLOR_NEUTRAL, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 })
+                    ];
+                    const cube = new THREE.Mesh(boxGeo, materials);
+                    cube.position.set(posX, posY, posZ);
+                    voxelGroup.add(cube);
+                } else {
+                    const wedge = createWedgeMesh(vType, state.colorAid, vSpan, vIdx);
+                    wedge.position.set(posX, posY, posZ);
+                    voxelGroup.add(wedge);
+                }
+            });
+
+            // =====================================================================
+            // LÍNEAS 3D: se deducen de las CARAS REALES de cada bloque (cubos y rampas).
+            //  - Arista con una sola cara, o con caras de distinta orientación -> LÍNEA CONTINUA
+            //  - Arista entre dos caras coplanarias (misma orientación)         -> DISCONTINUA (subdivisión)
+            // Así cada bloque se ve siempre igual, sin casos especiales por rampa.
+            // =====================================================================
+            const solidLineMat = new THREE.LineBasicMaterial({ color: 0x000000 });
+            const dashedSubMat = new THREE.LineDashedMaterial({
+                color: 0x111111,
+                dashSize: 0.1,
+                gapSize: 0.08,
+                transparent: true,
+                opacity: 0.55
+            });
+            const solidVertices = [];
+            const dashedVertices = [];
+
+            const faces3D = buildSolidFaces(state.activeVoxels, offset);
+            classifyFaceEdges(faces3D).forEach(e => {
+                if (e.solid) solidVertices.push(...e.a, ...e.b);
+                else if (state.showCage) dashedVertices.push(...e.a, ...e.b);
+            });
+
+            if (solidVertices.length > 0) {
+                const solidGeo = new THREE.BufferGeometry();
+                solidGeo.setAttribute('position', new THREE.Float32BufferAttribute(solidVertices, 3));
+                voxelGroup.add(new THREE.LineSegments(solidGeo, solidLineMat));
+            }
+
+            if (dashedVertices.length > 0) {
+                const dashedGeo = new THREE.BufferGeometry();
+                dashedGeo.setAttribute('position', new THREE.Float32BufferAttribute(dashedVertices, 3));
+                const dashedLines = new THREE.LineSegments(dashedGeo, dashedSubMat);
+                dashedLines.computeLineDistances();
+                cageGroup.add(dashedLines);
+            }
+
+            const arrowOrigin = new THREE.Vector3(0, -offset - 0.35, offset + 1.45);
+            const arrowDir = new THREE.Vector3(0, 0.12, -1).normalize();
+            const alzadoArrow = new THREE.ArrowHelper(arrowDir, arrowOrigin, 0.85, 0xFF6B8B, 0.32, 0.25);
+            cageGroup.add(alzadoArrow);
+        }
+
+        function toggleColorAid() {
+            state.colorAid = !state.colorAid;
+            const btn = document.getElementById('colorAidBtn');
+            if (btn) btn.textContent = `🎨 COLOR: ${state.colorAid ? 'ON' : 'OFF'}`;
+            render3DVoxels();
+        }
+
+        function toggleWireframeCage() {
+            state.showCage = !state.showCage;
+            const btn = document.getElementById('cageBtn');
+            if (btn) btn.textContent = `🕸️ DIVISIONES: ${state.showCage ? 'ON' : 'OFF'}`;
+            render3DVoxels();
+        }
+
+        // =========================================================================
+        // 5. MOTOR MATEMÁTICO DE PROYECCIÓN DIÉDRICA (CARAS + RAMPAS + OCULTAS)
+        // =========================================================================
+        function cellsMatch2D(a, b) {
+            if (!a && !b) return true;
+            if (!a || !b) return false;
+            const normCell = (v) => {
+                if (v === true || v === 'full') return { type: 'full', span: 1, index: 0 };
+                if (typeof v === 'string') return { type: v, span: 1, index: 0 };
+                if (typeof v === 'object' && v.type) return { type: v.type, span: v.span || 1, index: v.index || 0 };
+                return { type: 'full', span: 1, index: 0 };
+            };
+            const na = normCell(a);
+            const nb = normCell(b);
+            return na.type === nb.type && na.span === nb.span && na.index === nb.index;
+        }
+
+        // =========================================================================
+        // GEOMETRÍA COMPARTIDA: caras reales de la pieza -> aristas -> proyecciones
+        // =========================================================================
+        // Alturas de las 4 esquinas superiores: nn=(x-,z-) pn=(x+,z-) pp=(x+,z+) np=(x-,z+)
+        function blockTopHeights(v) {
+            if (v.type === 'cube') return { nn: 0.5, pn: 0.5, pp: 0.5, np: 0.5 };
+            const sp = v.span || 1, idx = v.index || 0;
+            const hH = 0.5 - idx / sp;
+            const hL = 0.5 - (idx + 1) / sp;
+            switch (v.type) {
+                case 'ramp_zp': return { nn: hH, pn: hH, pp: hL, np: hL };
+                case 'ramp_zn': return { nn: hL, pn: hL, pp: hH, np: hH };
+                case 'ramp_xp': return { nn: hH, pn: hL, pp: hL, np: hH };
+                case 'ramp_xn': return { nn: hL, pn: hH, pp: hH, np: hL };
+                default:        return { nn: hH, pn: hH, pp: hH, np: hH };
+            }
+        }
+        function sideProfile(h, side) {
+            if (side === 'left')  return [h.nn, h.np];
+            if (side === 'right') return [h.pn, h.pp];
+            if (side === 'back')  return [h.nn, h.pn];
+            return [h.np, h.pp]; // front
+        }
+        const SIDE_INFO = {
+            left:  { d: [-1, 0, 0], opp: 'right', n: [-1, 0, 0] },
+            right: { d: [ 1, 0, 0], opp: 'left',  n: [ 1, 0, 0] },
+            back:  { d: [ 0, 0,-1], opp: 'front', n: [ 0, 0,-1] },
+            front: { d: [ 0, 0, 1], opp: 'back',  n: [ 0, 0, 1] }
+        };
+
+        // Devuelve las caras EXTERIORES de la pieza (las internas entre bloques se eliminan)
+        function buildSolidFaces(voxelMapRef, offset) {
+            const faces = [];
+            const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+            const pushFace = (pts, n) => {
+                const clean = [];
+                pts.forEach(p => {
+                    if (clean.length === 0 || dist(p, clean[clean.length - 1]) > 1e-4) clean.push(p);
+                });
+                if (clean.length > 1 && dist(clean[0], clean[clean.length - 1]) < 1e-4) clean.pop();
+                if (clean.length < 3) return;
+                faces.push({ pts: clean, n });
+            };
+            voxelMapRef.forEach((raw, key) => {
+                const [x, y, z] = key.split(',').map(Number);
+                const v = normalizeVoxelData(raw);
+                const h = blockTopHeights(v);
+                const ox = x - offset, oy = y - offset, oz = z - offset;
+                const P = (dx, yy, dz) => [ox + dx, oy + yy, oz + dz];
+                const isCube = v.type === 'cube';
+
+                const above = getVoxelObj(voxelMapRef, x, y + 1, z);
+                if (!(isCube && above)) {
+                    const bx = h.pn - h.nn;
+                    const bz = h.np - h.nn;
+                    const len = Math.hypot(bx, 1, bz);
+                    pushFace(
+                        [P(-0.5, h.nn, -0.5), P(-0.5, h.np, 0.5), P(0.5, h.pp, 0.5), P(0.5, h.pn, -0.5)],
+                        [-bx / len, 1 / len, -bz / len]
+                    );
+                }
+                const below = getVoxelObj(voxelMapRef, x, y - 1, z);
+                if (!(below && below.type === 'cube')) {
+                    pushFace([P(-0.5, -0.5, -0.5), P(0.5, -0.5, -0.5), P(0.5, -0.5, 0.5), P(-0.5, -0.5, 0.5)], [0, -1, 0]);
+                }
+                Object.keys(SIDE_INFO).forEach(side => {
+                    const info = SIDE_INFO[side];
+                    const mine = sideProfile(h, side);
+                    const nb = getVoxelObj(voxelMapRef, x + info.d[0], y, z + info.d[2]);
+                    if (nb) {
+                        const theirs = sideProfile(blockTopHeights(nb), info.opp);
+                        if (theirs[0] >= mine[0] - 1e-6 && theirs[1] >= mine[1] - 1e-6) return;
+                    }
+                    let pts;
+                    if (side === 'left')       pts = [P(-0.5,-0.5,-0.5), P(-0.5,-0.5, 0.5), P(-0.5, h.np, 0.5), P(-0.5, h.nn,-0.5)];
+                    else if (side === 'right') pts = [P( 0.5,-0.5,-0.5), P( 0.5,-0.5, 0.5), P( 0.5, h.pp, 0.5), P( 0.5, h.pn,-0.5)];
+                    else if (side === 'back')  pts = [P(-0.5,-0.5,-0.5), P( 0.5,-0.5,-0.5), P( 0.5, h.pn,-0.5), P(-0.5, h.nn,-0.5)];
+                    else                       pts = [P(-0.5,-0.5, 0.5), P( 0.5,-0.5, 0.5), P( 0.5, h.pp, 0.5), P(-0.5, h.np, 0.5)];
+                    pushFace(pts, info.n);
+                });
+            });
+            return faces;
+        }
+
+        // Aristas de la pieza: solid=true si hay cambio de orientación (arista real); false si es subdivisión coplanaria
+        function classifyFaceEdges(faces) {
+            const qPt = (p) => `${Math.round(p[0] * 1000)},${Math.round(p[1] * 1000)},${Math.round(p[2] * 1000)}`;
+            const map = new Map();
+            faces.forEach(f => {
+                const m = f.pts.length;
+                for (let i = 0; i < m; i++) {
+                    const a = f.pts[i], b = f.pts[(i + 1) % m];
+                    const ka = qPt(a), kb = qPt(b);
+                    const k = ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
+                    let e = map.get(k);
+                    if (!e) { e = { a, b, normals: [] }; map.set(k, e); }
+                    e.normals.push(f.n);
+                }
+            });
+            const out = [];
+            map.forEach(e => {
+                let coplanar = e.normals.length >= 2;
+                const n0 = e.normals[0];
+                for (let i = 1; i < e.normals.length && coplanar; i++) {
+                    const ni = e.normals[i];
+                    if (n0[0] * ni[0] + n0[1] * ni[1] + n0[2] * ni[2] < 0.999) coplanar = false;
+                }
+                out.push({ a: e.a, b: e.b, solid: !coplanar });
+            });
+            return out;
+        }
+
+        // ¿Un punto de la pieza se ve desde el observador (dir = hacia el observador)?
+        function isPointVisibleFrom(faces, p, dir) {
+            const o = [p[0] + dir[0] * 1e-4, p[1] + dir[1] * 1e-4, p[2] + dir[2] * 1e-4];
+            for (const f of faces) {
+                const dn = f.n[0] * dir[0] + f.n[1] * dir[1] + f.n[2] * dir[2];
+                if (Math.abs(dn) < 1e-9) continue;
+                const p0 = f.pts[0];
+                const t = (f.n[0] * (p0[0] - o[0]) + f.n[1] * (p0[1] - o[1]) + f.n[2] * (p0[2] - o[2])) / dn;
+                if (t < 1e-6) continue;
+                const hit = [o[0] + dir[0] * t, o[1] + dir[1] * t, o[2] + dir[2] * t];
+                // punto dentro del polígono convexo (se proyecta quitando el eje dominante de la normal)
+                const ax = Math.abs(f.n[0]) >= Math.abs(f.n[1]) && Math.abs(f.n[0]) >= Math.abs(f.n[2]) ? 0
+                         : (Math.abs(f.n[1]) >= Math.abs(f.n[2]) ? 1 : 2);
+                const i1 = (ax + 1) % 3, i2 = (ax + 2) % 3;
+                let pos = false, neg = false;
+                const m = f.pts.length;
+                for (let i = 0; i < m; i++) {
+                    const a = f.pts[i], b = f.pts[(i + 1) % m];
+                    const cr = (b[i1] - a[i1]) * (hit[i2] - a[i2]) - (b[i2] - a[i2]) * (hit[i1] - a[i1]);
+                    if (cr > 1e-7) pos = true;
+                    if (cr < -1e-7) neg = true;
+                }
+                if (!(pos && neg)) return false; // el rayo choca con una cara delante: está oculto
+            }
+            return true;
+        }
+
+        // Aristas geométricas de cada vista: 0 = nada, 1 = línea continua (visible), 2 = discontinua (oculta)
+        function computeGeometricEdges(voxelMapRef, N) {
+            const faces = buildSolidFaces(voxelMapRef, 0);
+            const creases = classifyFaceEdges(faces).filter(e => e.solid);
+            const VIEWS = {
+                alzado: { proj: p => [p[0], p[1]], toRow: v => N - 1 - v, dir: [0, 0, 1] },
+                perfil: { proj: p => [p[2], p[1]], toRow: v => N - 1 - v, dir: [-1, 0, 0] },
+                planta: { proj: p => [p[0], p[2]], toRow: v => v,         dir: [0, 1, 0] }
+            };
+            const res = {};
+            const isInt = (v) => Math.abs(v - Math.round(v)) < 1e-6;
+            Object.keys(VIEWS).forEach(k => {
+                const V = VIEWS[k];
+                const E = createEmptyEdges(N);
+                creases.forEach(e => {
+                    const [u1, v1] = V.proj(e.a);
+                    const [u2, v2] = V.proj(e.b);
+                    let kind = null, r, c;
+                    if (Math.abs(v1 - v2) < 1e-6 && Math.abs(Math.abs(u1 - u2) - 1) < 1e-4) {
+                        // horizontal: v es la frontera entre dos filas
+                        const vb = V.toRow(v1);               // fila + 0.5 (o -0.5 según vista)
+                        const rr = k === 'planta' ? vb - 0.5 : vb - 0.5 - 0; 
+                        // alzado/perfil: fila r tiene y=N-1-r; frontera r|r+1 en y=N-1-r-0.5 -> toRow(y)=r+0.5
+                        // planta: frontera r|r+1 en z=r+0.5 -> toRow(z)=r+0.5
+                        if (!isInt(vb - 0.5)) return;
+                        r = Math.round(vb - 0.5);
+                        c = Math.round(Math.min(u1, u2) + 0.5);
+                        kind = 'h';
+                    } else if (Math.abs(u1 - u2) < 1e-6 && Math.abs(Math.abs(v1 - v2) - 1) < 1e-4) {
+                        // vertical: u es la frontera entre dos columnas
+                        if (!isInt(u1 - 0.5)) return;
+                        c = Math.round(u1 - 0.5);
+                        const vm = (v1 + v2) / 2;
+                        if (!isInt(vm)) return;
+                        r = Math.round(V.toRow(vm));
+                        kind = 'v';
+                    } else return;
+                    if (kind === 'h' && (r < 0 || r > N - 2 || c < 0 || c > N - 1)) return;
+                    if (kind === 'v' && (c < 0 || c > N - 2 || r < 0 || r > N - 1)) return;
+
+                    let vis = 0;
+                    [0.25, 0.5, 0.75].forEach(t => {
+                        const pt = [e.a[0] + (e.b[0] - e.a[0]) * t, e.a[1] + (e.b[1] - e.a[1]) * t, e.a[2] + (e.b[2] - e.a[2]) * t];
+                        if (isPointVisibleFrom(faces, pt, V.dir)) vis++;
+                    });
+                    const val = vis >= 2 ? 1 : 2;
+                    const arr = kind === 'h' ? E.h : E.v;
+                    if (arr[r][c] === 0 || val < arr[r][c]) arr[r][c] = val; // continua gana sobre discontinua
+                });
+                res[k] = E;
+            });
+            return res;
+        }
+
+
+        function computeExpectedViews(voxelMapRef = state.activeVoxels, gridSizeRef = state.gridSize) {
+            const N = gridSizeRef;
+            const alzado = createEmptyMatrix(N);
+            const perfil = createEmptyMatrix(N);
+            const planta = createEmptyMatrix(N);
+
+            const depthAlzado = Array.from({ length: N }, () => Array(N).fill(null));
+            const depthPerfil = Array.from({ length: N }, () => Array(N).fill(null));
+            const depthPlanta = Array.from({ length: N }, () => Array(N).fill(null));
+
+            const hasVoxelAt = (x, y, z) => voxelMapRef.has(`${x},${y},${z}`);
+
+            for (let y = 0; y < N; y++) {
+                const row = (N - 1) - y;
+                for (let x = 0; x < N; x++) {
+                    const col = x;
+                    for (let z = N - 1; z >= 0; z--) {
+                        const vObj = getVoxelObj(voxelMapRef, x, y, z);
+                        if (vObj) {
+                            const vType = vObj.type;
+                            const sp = vObj.span || 1;
+                            const idx = vObj.index || 0;
+                            if (vType === 'ramp_xp') {
+                                let hasSolidBehind = false;
+                                for (let zb = z - 1; zb >= 0; zb--) {
+                                    const vb = getVoxelObj(voxelMapRef, x, y, zb);
+                                    if (vb && vb.type !== 'ramp_xp') { hasSolidBehind = true; break; }
+                                }
+                                alzado[row][col] = hasSolidBehind ? true : { type: 'diag_bl', span: sp, index: idx };
+                                depthAlzado[row][col] = hasSolidBehind ? `mix:${z}` : `flat:${z}`;
+                            } else if (vType === 'ramp_xn') {
+                                let hasSolidBehind = false;
+                                for (let zb = z - 1; zb >= 0; zb--) {
+                                    const vb = getVoxelObj(voxelMapRef, x, y, zb);
+                                    if (vb && vb.type !== 'ramp_xn') { hasSolidBehind = true; break; }
+                                }
+                                alzado[row][col] = hasSolidBehind ? true : { type: 'diag_br', span: sp, index: idx };
+                                depthAlzado[row][col] = hasSolidBehind ? `mix:${z}` : `flat:${z}`;
+                            } else {
+                                alzado[row][col] = true;
+                                if (vType === 'ramp_zp') {
+                                    depthAlzado[row][col] = `ramp_zp:${y}:${z - idx}:${sp}`;
+                                } else if (vType === 'ramp_zn') {
+                                    depthAlzado[row][col] = `ramp_zn:${y}:${z + idx}:${sp}`;
+                                } else {
+                                    depthAlzado[row][col] = `flat:${z}`;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            for (let y = 0; y < N; y++) {
+                const row = (N - 1) - y;
+                for (let z = 0; z < N; z++) {
+                    const col = z;
+                    for (let x = 0; x < N; x++) {
+                        const vObj = getVoxelObj(voxelMapRef, x, y, z);
+                        if (vObj) {
+                            const vType = vObj.type;
+                            const sp = vObj.span || 1;
+                            const idx = vObj.index || 0;
+                            if (vType === 'ramp_zp') {
+                                let hasSolidBehind = false;
+                                for (let xb = x + 1; xb < N; xb++) {
+                                    const vb = getVoxelObj(voxelMapRef, xb, y, z);
+                                    if (vb && vb.type !== 'ramp_zp') { hasSolidBehind = true; break; }
+                                }
+                                perfil[row][col] = hasSolidBehind ? true : { type: 'diag_bl', span: sp, index: idx };
+                                depthPerfil[row][col] = hasSolidBehind ? `mix:${x}` : `flat:${x}`;
+                            } else if (vType === 'ramp_zn') {
+                                let hasSolidBehind = false;
+                                for (let xb = x + 1; xb < N; xb++) {
+                                    const vb = getVoxelObj(voxelMapRef, xb, y, z);
+                                    if (vb && vb.type !== 'ramp_zn') { hasSolidBehind = true; break; }
+                                }
+                                perfil[row][col] = hasSolidBehind ? true : { type: 'diag_br', span: sp, index: idx };
+                                depthPerfil[row][col] = hasSolidBehind ? `mix:${x}` : `flat:${x}`;
+                            } else {
+                                perfil[row][col] = true;
+                                if (vType === 'ramp_xn') {
+                                    depthPerfil[row][col] = `ramp_xn:${y}:${x + idx}:${sp}`;
+                                } else if (vType === 'ramp_xp') {
+                                    depthPerfil[row][col] = `ramp_xp:${y}:${x - idx}:${sp}`;
+                                } else {
+                                    depthPerfil[row][col] = `flat:${x}`;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            for (let z = 0; z < N; z++) {
+                const row = z;
+                for (let x = 0; x < N; x++) {
+                    const col = x;
+                    for (let y = N - 1; y >= 0; y--) {
+                        const vObj = getVoxelObj(voxelMapRef, x, y, z);
+                        if (vObj) {
+                            planta[row][col] = true;
+                            const vType = vObj.type;
+                            const sp = vObj.span || 1;
+                            const idx = vObj.index || 0;
+                            if (vType === 'cube') {
+                                depthPlanta[row][col] = `flat:${y}`;
+                            } else if (vType === 'ramp_xp') {
+                                depthPlanta[row][col] = `ramp_xp:${y}:${x - idx}:${sp}`;
+                            } else if (vType === 'ramp_xn') {
+                                depthPlanta[row][col] = `ramp_xn:${y}:${x + idx}:${sp}`;
+                            } else if (vType === 'ramp_zp') {
+                                depthPlanta[row][col] = `ramp_zp:${y}:${z - idx}:${sp}`;
+                            } else if (vType === 'ramp_zn') {
+                                depthPlanta[row][col] = `ramp_zn:${y}:${z + idx}:${sp}`;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            const edges = {
+                alzado: createEmptyEdges(N),
+                perfil: createEmptyEdges(N),
+                planta: createEmptyEdges(N)
+            };
+
+            const isLowZeroTip = (cellVal, side) => {
+                if (!cellVal || typeof cellVal !== 'object') return false;
+                const sp = cellVal.span || 1;
+                const idx = cellVal.index || 0;
+                if (side === 'right' && cellVal.type === 'diag_bl' && idx === sp - 1) return true;
+                if (side === 'left' && cellVal.type === 'diag_br' && idx === sp - 1) return true;
+                return false;
+            };
+
+            const isSameContinuousSideRamp = (a, b) => {
+                if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false;
+                if (a.type !== b.type || (a.span || 1) !== (b.span || 1)) return false;
+                if (a.type === 'diag_bl' && (b.index || 0) === (a.index || 0) + 1) return true;
+                if (a.type === 'diag_br' && (a.index || 0) === (b.index || 0) + 1) return true;
+                return false;
+            };
+
+            const getFrontCoordFromDepthSig = (sig, fallback) => {
+                if (!sig) return fallback;
+                const parts = String(sig).split(':');
+                if (parts[0] === 'flat' || parts[0] === 'mix') return parseInt(parts[1], 10);
+                return parseInt(parts[2], 10);
+            };
+
+            // Solo existe una cara horizontal oculta entre yAbove e yAbove-1 si uno está ocupado y el otro vacío
+            // (la base de una rampa apoyada sobre un cubo inferior está 100% fusionada y no genera arista horizontal).
+            const hasHorizontalBoundaryChangeAt = (x, yAbove, z) => {
+                const vAbove = getVoxelObj(voxelMapRef, x, yAbove, z);
+                const vBelow = getVoxelObj(voxelMapRef, x, yAbove - 1, z);
+                if (vAbove && vBelow) return false;
+                if (!vAbove && !vBelow) return false;
+                if (!vAbove && vBelow && vBelow.type !== 'cube') return false;
+                return true;
+            };
+
+            // Calcula la sección transversal de un bloque en sus caras +-Z (para Perfil) o +-X (para Alzado).
+            // Si dos bloques contiguos tienen la misma sección en el plano que comparten (ej: cubo unido al inicio alto
+            // de una rampa, o dos tramos seguidos de la misma rampa), están fusionados y no generan arista vertical.
+            const getBoundaryProfileZ = (x, y, z, side) => {
+                const v = getVoxelObj(voxelMapRef, x, y, z);
+                if (!v) return 'h:0';
+                if (v.type === 'cube') return 'h:1';
+                const sp = v.span || 1;
+                const idx = v.index || 0;
+                if (v.type === 'ramp_zp') {
+                    const h = side === 'minus' ? (1 - idx / sp) : (1 - (idx + 1) / sp);
+                    return `h:${Math.round(h * 1000)}`;
+                }
+                if (v.type === 'ramp_zn') {
+                    const h = side === 'plus' ? (1 - idx / sp) : (1 - (idx + 1) / sp);
+                    return `h:${Math.round(h * 1000)}`;
+                }
+                return `slopeX:${v.type}:${sp}:${idx}`;
+            };
+
+            const hasVerticalBoundaryChangeAlongZ = (x, y, z) => {
+                return getBoundaryProfileZ(x, y, z, 'plus') !== getBoundaryProfileZ(x, y, z + 1, 'minus');
+            };
+
+            const getBoundaryProfileX = (x, y, z, side) => {
+                const v = getVoxelObj(voxelMapRef, x, y, z);
+                if (!v) return 'h:0';
+                if (v.type === 'cube') return 'h:1';
+                const sp = v.span || 1;
+                const idx = v.index || 0;
+                if (v.type === 'ramp_xp') {
+                    const h = side === 'minus' ? (1 - idx / sp) : (1 - (idx + 1) / sp);
+                    return `h:${Math.round(h * 1000)}`;
+                }
+                if (v.type === 'ramp_xn') {
+                    const h = side === 'plus' ? (1 - idx / sp) : (1 - (idx + 1) / sp);
+                    return `h:${Math.round(h * 1000)}`;
+                }
+                return `slopeZ:${v.type}:${sp}:${idx}`;
+            };
+
+            const hasVerticalBoundaryChangeAlongX = (x, y, z) => {
+                return getBoundaryProfileX(x, y, z, 'plus') !== getBoundaryProfileX(x + 1, y, z, 'minus');
+            };
+
+            // Aristas ALZADO
+            for (let r = 0; r < N - 1; r++) {
+                const yBoundary = (N - 1) - r;
+                for (let c = 0; c < N; c++) {
+                    const x = c;
+                    if (alzado[r][c] && alzado[r + 1][c]) {
+                        if (isLowZeroTip(alzado[r][c], 'right') && isLowZeroTip(alzado[r][c], 'left')) continue;
+                        if (depthAlzado[r][c] !== depthAlzado[r + 1][c]) {
+                            edges.alzado.h[r][c] = 1;
+                        } else if (!String(depthAlzado[r][c]).startsWith('ramp_')) {
+                            let hiddenStep = false;
+                            const frontZ = getFrontCoordFromDepthSig(depthAlzado[r][c], 0);
+                            for (let z = 0; z < frontZ; z++) {
+                                if (hasHorizontalBoundaryChangeAt(x, yBoundary, z)) {
+                                    hiddenStep = true; break;
+                                }
+                            }
+                            if (hiddenStep) edges.alzado.h[r][c] = 2;
+                        }
+                    }
+                }
+            }
+            for (let r = 0; r < N; r++) {
+                const y = (N - 1) - r;
+                for (let c = 0; c < N - 1; c++) {
+                    if (alzado[r][c] && alzado[r][c + 1]) {
+                        if (isLowZeroTip(alzado[r][c], 'right') || isLowZeroTip(alzado[r][c + 1], 'left')) continue;
+                        if (isSameContinuousSideRamp(alzado[r][c], alzado[r][c + 1])) continue;
+                        if (depthAlzado[r][c] !== depthAlzado[r][c + 1]) {
+                            edges.alzado.v[r][c] = 1;
+                        } else if (!String(depthAlzado[r][c]).startsWith('ramp_')) {
+                            let hiddenStep = false;
+                            const frontZ = getFrontCoordFromDepthSig(depthAlzado[r][c], 0);
+                            for (let z = 0; z < frontZ; z++) {
+                                if (hasVerticalBoundaryChangeAlongX(c, y, z)) {
+                                    hiddenStep = true; break;
+                                }
+                            }
+                            if (hiddenStep) edges.alzado.v[r][c] = 2;
+                        }
+                    }
+                }
+            }
+
+            // Aristas PERFIL IZQUIERDO
+            for (let r = 0; r < N - 1; r++) {
+                const yBoundary = (N - 1) - r;
+                for (let c = 0; c < N; c++) {
+                    const z = c;
+                    if (perfil[r][c] && perfil[r + 1][c]) {
+                        if (depthPerfil[r][c] !== depthPerfil[r + 1][c]) {
+                            edges.perfil.h[r][c] = 1;
+                        } else if (!String(depthPerfil[r][c]).startsWith('ramp_')) {
+                            let hiddenStep = false;
+                            const frontX = getFrontCoordFromDepthSig(depthPerfil[r][c], N);
+                            for (let x = frontX + 1; x < N; x++) {
+                                if (hasHorizontalBoundaryChangeAt(x, yBoundary, z)) {
+                                    hiddenStep = true; break;
+                                }
+                            }
+                            if (hiddenStep) edges.perfil.h[r][c] = 2;
+                        }
+                    }
+                }
+            }
+            for (let r = 0; r < N; r++) {
+                const y = (N - 1) - r;
+                for (let c = 0; c < N - 1; c++) {
+                    const z = c;
+                    if (perfil[r][c] && perfil[r][c + 1]) {
+                        if (isLowZeroTip(perfil[r][c], 'right') || isLowZeroTip(perfil[r][c + 1], 'left')) continue;
+                        if (isSameContinuousSideRamp(perfil[r][c], perfil[r][c + 1])) continue;
+                        if (depthPerfil[r][c] !== depthPerfil[r][c + 1]) {
+                            const sig1 = String(depthPerfil[r][c]);
+                            const sig2 = String(depthPerfil[r][c + 1]);
+                            if (sig1.startsWith('ramp_') || sig2.startsWith('ramp_')) {
+                                // Las rampas de perfil no exigen arista vertical interna de separación falsa
+                                continue;
+                            }
+                            edges.perfil.v[r][c] = 1;
+                        } else if (!String(depthPerfil[r][c]).startsWith('ramp_')) {
+                            let hiddenStep = false;
+                            const frontX = getFrontCoordFromDepthSig(depthPerfil[r][c], N);
+                            for (let x = frontX + 1; x < N; x++) {
+                                if (hasVerticalBoundaryChangeAlongZ(x, y, z)) {
+                                    hiddenStep = true; break;
+                                }
+                            }
+                            if (hiddenStep) edges.perfil.v[r][c] = 2;
+                        }
+                    }
+                }
+            }
+
+            // Aristas PLANTA
+            for (let r = 0; r < N - 1; r++) {
+                const z = r;
+                for (let c = 0; c < N; c++) {
+                    const x = c;
+                    if (planta[r][c] && planta[r + 1][c]) {
+                        if (depthPlanta[r][c] !== depthPlanta[r + 1][c]) {
+                            // Excluimos falsas aristas interiores bajo rampas o superficies continuas
+                            const sig1 = String(depthPlanta[r][c]);
+                            const sig2 = String(depthPlanta[r + 1][c]);
+                            if (sig1.startsWith('ramp_') || sig2.startsWith('ramp_')) continue;
+                            edges.planta.h[r][c] = 1;
+                        } else if (!String(depthPlanta[r][c]).startsWith('ramp_')) {
+                            let hiddenStep = false;
+                            const topY = parseInt(String(depthPlanta[r][c]).split(':')[1], 10);
+                            for (let y = 0; y < topY; y++) {
+                                if (hasVoxelAt(x, y, z) !== hasVoxelAt(x, y, z + 1)) {
+                                    hiddenStep = true; break;
+                                }
+                            }
+                            if (hiddenStep) edges.planta.h[r][c] = 2;
+                        }
+                    }
+                }
+            }
+            for (let r = 0; r < N; r++) {
+                const z = r;
+                for (let c = 0; c < N - 1; c++) {
+                    const x = c;
+                    if (planta[r][c] && planta[r][c + 1]) {
+                        if (depthPlanta[r][c] !== depthPlanta[r][c + 1]) {
+                            const sig1 = String(depthPlanta[r][c]);
+                            const sig2 = String(depthPlanta[r][c + 1]);
+                            if (sig1.startsWith('ramp_') || sig2.startsWith('ramp_')) continue;
+                            edges.planta.v[r][c] = 1;
+                        } else if (!String(depthPlanta[r][c]).startsWith('ramp_')) {
+                            let hiddenStep = false;
+                            const topY = parseInt(String(depthPlanta[r][c]).split(':')[1], 10);
+                            for (let y = 0; y < topY; y++) {
+                                if (hasVoxelAt(x, y, z) !== hasVoxelAt(x + 1, y, z)) {
+                                    hiddenStep = true; break;
+                                }
+                            }
+                            if (hiddenStep) edges.planta.v[r][c] = 2;
+                        }
+                    }
+                }
+            }
+
+            // ---- Aristas: se deciden con la geometría real (continua = visible, discontinua = oculta) ----
+            const geo = computeGeometricEdges(voxelMapRef, N);
+            [['alzado', alzado], ['perfil', perfil], ['planta', planta]].forEach(([k, M]) => {
+                for (let r = 0; r < N - 1; r++) {
+                    for (let c = 0; c < N; c++) {
+                        const a = M[r][c], b = M[r + 1][c];
+                        let val = (a && b) ? geo[k].h[r][c] : 0;
+                        if (k === 'alzado' && a && b && isLowZeroTip(a, 'right') && isLowZeroTip(a, 'left')) val = 0;
+                        edges[k].h[r][c] = val;
+                    }
+                }
+                for (let r = 0; r < N; r++) {
+                    for (let c = 0; c < N - 1; c++) {
+                        const a = M[r][c], b = M[r][c + 1];
+                        let val = (a && b) ? geo[k].v[r][c] : 0;
+                        if (a && b && (isLowZeroTip(a, 'right') || isLowZeroTip(b, 'left'))) val = 0;
+                        if (a && b && isSameContinuousSideRamp(a, b)) val = 0;
+                        edges[k].v[r][c] = val;
+                    }
+                }
+            });
+
+            // Aristas que son CONTORNO de la figura (un lado vacío, o punta de rampa):
+            // si el alumno dibuja ahí una línea, no se cuenta como error.
+            const makeIgnore = () => ({
+                h: Array.from({ length: Math.max(1, N - 1) }, () => Array(N).fill(false)),
+                v: Array.from({ length: N }, () => Array(Math.max(1, N - 1)).fill(false))
+            });
+            const ignore = { alzado: makeIgnore(), perfil: makeIgnore(), planta: makeIgnore() };
+            [['alzado', alzado], ['perfil', perfil], ['planta', planta]].forEach(([k, M]) => {
+                for (let r = 0; r < N - 1; r++) {
+                    for (let c = 0; c < N; c++) {
+                        if (edges[k].h[r][c] !== 0) continue;
+                        const a = M[r][c], b = M[r + 1][c];
+                        if (!a || !b) ignore[k].h[r][c] = true;
+                        else if (k === 'alzado' && isLowZeroTip(a, 'right') && isLowZeroTip(a, 'left')) ignore[k].h[r][c] = true;
+                    }
+                }
+                for (let r = 0; r < N; r++) {
+                    for (let c = 0; c < N - 1; c++) {
+                        if (edges[k].v[r][c] !== 0) continue;
+                        const a = M[r][c], b = M[r][c + 1];
+                        if (!a || !b) ignore[k].v[r][c] = true;
+                        else if (isLowZeroTip(a, 'right') || isLowZeroTip(b, 'left')) ignore[k].v[r][c] = true;
+                    }
+                }
+            });
+
+            return { alzado, perfil, planta, edges, ignore };
+        }
+
+        // Una línea del alumno solo es error si la arista no es contorno y no coincide con la esperada
+        function edgeMismatch(sEdge, eEdge, ign) {
+            if (ign && eEdge === 0) return false;
+            return sEdge !== eEdge;
+        }
+
+        // =========================================================================
+        // 6. CUADERNO DIÉDRICO INTERACTIVO (CUADRÍCULA DINÁMICA + HERRAMIENTAS 2D)
+        // =========================================================================
+        function renderNotebookAxesAndProjections() {
+            const svg = document.getElementById('notebookAxesSvg');
+            const sheet = document.getElementById('notebookSheet');
+            const unifiedGrid = document.getElementById('notebookUnifiedGrid');
+            if (!svg) return;
+
+            const N = state.gridSize || 3;
+            const totalUnits = 2 * N + 3;
+
+            if (sheet) sheet.style.setProperty('--total-units', totalUnits);
+            if (unifiedGrid) {
+                unifiedGrid.style.gridTemplateColumns = `1fr ${N}fr 1fr ${N}fr 1fr`;
+                unifiedGrid.style.gridTemplateRows = `1fr ${N}fr 1fr ${N}fr 1fr`;
+            }
+
+            const U = 100;
+            const S = totalUnits * U;
+            svg.setAttribute('viewBox', `0 0 ${S} ${S}`);
+
+            const vStart = 1 * U;
+            const vEnd = (1 + N) * U;
+            const axisCenter = (N + 1.5) * U;
+            const pStart = (N + 2) * U;
+            const pEnd = (2 * N + 2) * U;
+
+            let html = '';
+
+            for (let i = 1; i < N; i++) {
+                const yRow = vStart + i * U;
+                const xCol = vStart + i * U;
+                const yPlanta = pStart + i * U;
+                const xPerfil = pStart + i * U;
+                const miterPt = pStart + i * U;
+
+                html += `<line x1="${vStart}" y1="${yRow}" x2="${pEnd}" y2="${yRow}" stroke="#64748B" stroke-width="2" stroke-dasharray="7,6" />`;
+                html += `<line x1="${xCol}" y1="${vStart}" x2="${xCol}" y2="${pEnd}" stroke="#64748B" stroke-width="2" stroke-dasharray="7,6" />`;
+                html += `<line x1="${vStart}" y1="${yPlanta}" x2="${miterPt}" y2="${yPlanta}" stroke="#94A3B8" stroke-width="2" stroke-dasharray="6,6" />`;
+                html += `<line x1="${xPerfil}" y1="${vStart}" x2="${xPerfil}" y2="${miterPt}" stroke="#94A3B8" stroke-width="2" stroke-dasharray="6,6" />`;
+                html += `<circle cx="${miterPt}" cy="${miterPt}" r="4.5" fill="#FF6B8B" stroke="#000" stroke-width="2" />`;
+            }
+
+            html += `<line x1="${axisCenter}" y1="0" x2="${axisCenter}" y2="${S}" stroke="#000000" stroke-width="4" />`;
+            html += `<line x1="0" y1="${axisCenter}" x2="${S}" y2="${axisCenter}" stroke="#000000" stroke-width="4" />`;
+            html += `<line x1="${axisCenter - 38}" y1="${axisCenter + 12}" x2="${axisCenter - 16}" y2="${axisCenter + 12}" stroke="#000000" stroke-width="3" />`;
+            html += `<line x1="${axisCenter + 16}" y1="${axisCenter + 12}" x2="${axisCenter + 38}" y2="${axisCenter + 12}" stroke="#000000" stroke-width="3" />`;
+            html += `<line x1="${axisCenter}" y1="${axisCenter}" x2="${S}" y2="${S}" stroke="#FF6B8B" stroke-width="3.5" stroke-dasharray="9,6" />`;
+            html += `<circle cx="${axisCenter}" cy="${axisCenter}" r="7" fill="#FFE600" stroke="#000000" stroke-width="3" />`;
+
+            svg.innerHTML = html;
+        }
+
+        function set2DTool(toolName) {
+            state.tool2D = toolName;
+            const tools = ['face', 'ramp', 'edge'];
+            tools.forEach(t => {
+                const btn = document.getElementById(`tool2d_${t}`);
+                if (!btn) return;
+                if (t === toolName) {
+                    btn.className = "brutal-btn bg-[#00F0FF] brutal-border-sm brutal-shadow-sm px-2 sm:px-3 py-1 font-mono-code text-[11px] sm:text-xs font-black uppercase whitespace-nowrap ring-2 ring-black";
+                } else {
+                    btn.className = "brutal-btn bg-white brutal-border-sm px-2 sm:px-3 py-1 font-mono-code text-[11px] sm:text-xs font-black uppercase whitespace-nowrap";
+                }
+            });
+
+            const hintEl = document.getElementById('tool2dHintText');
+            if (hintEl) {
+                if (toolName === 'face') {
+                    hintEl.textContent = "💡 Mantén pulsado y arrastra para pintar o borrar caras (líneas bloqueadas)";
+                } else if (toolName === 'ramp') {
+                    hintEl.textContent = "📐 Haz clic en un lateral de una casilla y arrastra hacia donde baja la rampa";
+                } else {
+                    hintEl.textContent = "✏️ Haz clic en una arista interior (1 clic = continua, 2 = discontinua) y arrastra en recto";
+                }
+            }
+            render2DGrids();
+        }
+
+        function detectCellSideZone(e, el) {
+            const rect = el.getBoundingClientRect();
+            const nx = (e.clientX - rect.left) / (rect.width || 1) - 0.5;
+            const ny = (e.clientY - rect.top) / (rect.height || 1) - 0.5;
+            if (Math.abs(nx) >= Math.abs(ny)) {
+                return nx < 0 ? 'left' : 'right';
+            } else {
+                return ny < 0 ? 'top' : 'bottom';
+            }
+        }
+
+        function apply2DRampDrag(viewKey, r1, c1, startSide, r2, c2, endSide) {
+            const N = state.gridSize;
+            const matrix = state.studentViews[viewKey];
+
+            if (r1 === r2 && c1 === c2) {
+                let diagType = 'diag_bl';
+                if (startSide === 'left' || endSide === 'right') diagType = 'diag_bl';
+                if (startSide === 'right' || endSide === 'left') diagType = 'diag_br';
+                if (startSide === 'top' || startSide === 'bottom') diagType = true;
+                matrix[r1][c1] = diagType === true ? true : { type: diagType, span: 1, index: 0 };
+            } else if (Math.abs(c2 - c1) >= Math.abs(r2 - r1)) {
+                const span = Math.abs(c2 - c1) + 1;
+                const diagType = c2 > c1 ? 'diag_bl' : 'diag_br';
+                const step = c2 > c1 ? 1 : -1;
+                for (let i = 0; i < span; i++) {
+                    const cc = c1 + i * step;
+                    if (cc >= 0 && cc < N) {
+                        matrix[r1][cc] = { type: diagType, span: span, index: i };
+                    }
+                }
+            } else {
+                const minR = Math.min(r1, r2);
+                const maxR = Math.max(r1, r2);
+                for (let rr = minR; rr <= maxR; rr++) {
+                    matrix[rr][c1] = true;
+                }
+            }
+            hideFeedback();
+            render2DGrids();
+            updateLiveViewBadges();
+        }
+
+        function render2DGrids(validationDetails = null) {
+            renderNotebookAxesAndProjections();
+
+            const N = state.gridSize;
+            const viewsConfig = [
+                { key: 'alzado', containerId: 'gridAlzado', activeColor: '#A3E635' },
+                { key: 'perfil', containerId: 'gridPerfil', activeColor: '#C4B5FD' },
+                { key: 'planta', containerId: 'gridPlanta', activeColor: '#FF6B8B' }
+            ];
+
+            const isEdgeTool = state.tool2D === 'edge';
+
+            viewsConfig.forEach(cfg => {
+                const container = document.getElementById(cfg.containerId);
+                if (!container) return;
+                container.innerHTML = '';
+
+                const matrix = state.studentViews[cfg.key];
+                const edgeData = state.studentEdges[cfg.key];
+
+                const cellsGrid = document.createElement('div');
+                cellsGrid.className = 'grid w-full h-full relative z-10';
+                cellsGrid.style.gridTemplateColumns = `repeat(${N}, minmax(0, 1fr))`;
+                cellsGrid.style.gridTemplateRows = `repeat(${N}, minmax(0, 1fr))`;
+
+                for (let r = 0; r < N; r++) {
+                    for (let c = 0; c < N; c++) {
+                        const cellVal = matrix[r][c];
+                        const isActive = Boolean(cellVal);
+                        const cellObj = (typeof cellVal === 'object' && cellVal) ? cellVal : (typeof cellVal === 'string' ? { type: cellVal, span: 1, index: 0 } : null);
+                        const cellType = cellObj ? cellObj.type : (isActive ? 'full' : null);
+
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+
+                        const borderTop = (isActive && cellType === 'full' && (r === 0 || !matrix[r - 1][c])) ? '4px solid #000' : '1px dashed rgba(14,116,144,0.45)';
+                        const borderBottom = (isActive && cellType === 'full' && (r === N - 1 || !matrix[r + 1][c])) ? '4px solid #000' : '1px dashed rgba(14,116,144,0.45)';
+                        const borderLeft = (isActive && cellType === 'full' && (c === 0 || !matrix[r][c - 1])) ? '4px solid #000' : '1px dashed rgba(14,116,144,0.45)';
+                        const borderRight = (isActive && cellType === 'full' && (c === N - 1 || !matrix[r][c + 1])) ? '4px solid #000' : '1px dashed rgba(14,116,144,0.45)';
+
+                        btn.style.borderTop = borderTop;
+                        btn.style.borderBottom = borderBottom;
+                        btn.style.borderLeft = borderLeft;
+                        btn.style.borderRight = borderRight;
+
+                        let extraOverlay = '';
+                        if (validationDetails && validationDetails.faces && validationDetails.faces[cfg.key]) {
+                            const status = validationDetails.faces[cfg.key][r][c];
+                            if (status === 'wrong-extra') {
+                                extraOverlay = `<span class="z-20 font-mono-code font-black text-red-600 text-xs bg-white/90 px-1 border border-black">×</span>`;
+                            } else if (status === 'wrong-missing') {
+                                extraOverlay = `<span class="z-20 font-mono-code font-black text-black/70 text-xs bg-[#FFE600] px-1 border border-black">•</span>`;
+                            }
+                        }
+
+                        btn.className = `w-full h-full flex items-center justify-center relative overflow-hidden ${isEdgeTool ? 'cursor-default' : 'cursor-pointer'}`;
+                        btn.style.backgroundColor = (cellType === 'full') ? cfg.activeColor : 'transparent';
+
+                        if (cellType === 'diag_bl' || cellType === 'diag_br') {
+                            const sp = (cellObj && cellObj.span) ? cellObj.span : 1;
+                            const idx = (cellObj && cellObj.index !== undefined) ? cellObj.index : 0;
+                            const yStart = (idx / sp) * 100;
+                            const yEnd = ((idx + 1) / sp) * 100;
+
+                            const pts = cellType === 'diag_bl'
+                                ? `0,${yStart} 100,${yEnd} 100,100 0,100`
+                                : `0,${yEnd} 100,${yStart} 100,100 0,100`;
+                            const diagLine = cellType === 'diag_bl'
+                                ? `<line x1="0" y1="${yStart}" x2="100" y2="${yEnd}" stroke="#000" stroke-width="5" />`
+                                : `<line x1="100" y1="${yStart}" x2="0" y2="${yEnd}" stroke="#000" stroke-width="5" />`;
+
+                            const hasCellBelow = (r < N - 1) && Boolean(matrix[r + 1][c]);
+                            const hasCellLeft = (c > 0) && Boolean(matrix[r][c - 1]);
+                            const hasCellRight = (c < N - 1) && Boolean(matrix[r][c + 1]);
+
+                            let extraWalls = '';
+                            if (!hasCellBelow) {
+                                extraWalls += `<line x1="0" y1="98" x2="100" y2="98" stroke="#000" stroke-width="5" />`;
+                            }
+                            if (cellType === 'diag_bl') {
+                                if (idx === 0 && !hasCellLeft) {
+                                    extraWalls += `<line x1="2.5" y1="${yStart}" x2="2.5" y2="100" stroke="#000" stroke-width="5" />`;
+                                }
+                                if (!hasCellRight && yEnd < 99) {
+                                    extraWalls += `<line x1="97.5" y1="${yEnd}" x2="97.5" y2="100" stroke="#000" stroke-width="5" />`;
+                                }
+                            } else if (cellType === 'diag_br') {
+                                if (idx === 0 && !hasCellRight) {
+                                    extraWalls += `<line x1="97.5" y1="${yStart}" x2="97.5" y2="100" stroke="#000" stroke-width="5" />`;
+                                }
+                                if (!hasCellLeft && yEnd < 99) {
+                                    extraWalls += `<line x1="2.5" y1="${yEnd}" x2="2.5" y2="100" stroke="#000" stroke-width="5" />`;
+                                }
+                            }
+
+                            btn.innerHTML = `
+                                <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="absolute inset-0 w-full h-full pointer-events-none">
+                                    <polygon points="${pts}" fill="${cfg.activeColor}" />
+                                    ${diagLine}
+                                    ${extraWalls}
+                                </svg>
+                                ${extraOverlay}
+                            `;
+                        } else {
+                            btn.innerHTML = extraOverlay;
+                        }
+
+                        btn.addEventListener('mousedown', (e) => {
+                            if (e.button !== 0 || state.tool2D === 'edge') return;
+                            e.preventDefault();
+                            state.drag.active = true;
+                            state.drag.viewKey = cfg.key;
+
+                            if (state.tool2D === 'ramp') {
+                                const side = detectCellSideZone(e, btn);
+                                state.drag.mode = 'ramp2d';
+                                state.drag.rampStartR = r;
+                                state.drag.rampStartC = c;
+                                state.drag.rampStartZone = side;
+                                apply2DRampDrag(cfg.key, r, c, side, r, c, side);
+                                return;
+                            }
+
+                            state.drag.mode = 'face';
+                            const currentVal = Boolean(state.studentViews[cfg.key][r][c]);
+                            state.drag.paintValue = !currentVal;
+                            state.studentViews[cfg.key][r][c] = state.drag.paintValue;
+                            hideFeedback();
+                            render2DGrids();
+                            updateLiveViewBadges();
+                        });
+
+                        btn.addEventListener('mouseenter', (e) => {
+                            if (!state.drag.active || state.drag.viewKey !== cfg.key) return;
+                            if (state.drag.mode === 'face') {
+                                const targetVal = state.drag.paintValue;
+                                if (Boolean(state.studentViews[cfg.key][r][c]) !== targetVal) {
+                                    state.studentViews[cfg.key][r][c] = targetVal;
+                                    hideFeedback();
+                                    render2DGrids();
+                                    updateLiveViewBadges();
+                                }
+                            } else if (state.drag.mode === 'ramp2d') {
+                                const endSide = detectCellSideZone(e, btn);
+                                apply2DRampDrag(
+                                    cfg.key,
+                                    state.drag.rampStartR,
+                                    state.drag.rampStartC,
+                                    state.drag.rampStartZone,
+                                    r,
+                                    c,
+                                    endSide
+                                );
+                            }
+                        });
+
+                        cellsGrid.appendChild(btn);
+                    }
+                }
+                container.appendChild(cellsGrid);
+
+                const edgePointerStyle = isEdgeTool ? 'pointer-events: auto;' : 'pointer-events: none;';
+
+                for (let r = 0; r < N - 1; r++) {
+                    for (let c = 0; c < N; c++) {
+                        const edgeBtn = document.createElement('div');
+                        const edgeVal = edgeData.h[r][c];
+                        let stateClass = edgeVal === 1 ? 'edge-solid' : (edgeVal === 2 ? 'edge-dashed' : '');
+
+                        if (validationDetails && validationDetails.edges && validationDetails.edges[cfg.key]) {
+                            const err = validationDetails.edges[cfg.key].h[r][c];
+                            if (err === 'missing') stateClass = 'edge-missing';
+                            if (err === 'extra') stateClass = 'edge-extra';
+                        }
+
+                        edgeBtn.className = `edge-btn edge-btn-h ${stateClass}`;
+                        edgeBtn.style.cssText = `${edgePointerStyle} top: ${((r + 1) / N) * 100}%; left: ${(c / N) * 100 + 1}%; width: ${(1 / N) * 100 - 2}%;`;
+                        edgeBtn.innerHTML = `<div class="edge-line"></div>`;
+
+                        edgeBtn.addEventListener('mousedown', (e) => {
+                            if (e.button !== 0 || state.tool2D !== 'edge') return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const nextVal = (state.studentEdges[cfg.key].h[r][c] + 1) % 3;
+                            state.studentEdges[cfg.key].h[r][c] = nextVal;
+                            state.drag.active = true;
+                            state.drag.mode = 'edge';
+                            state.drag.viewKey = cfg.key;
+                            state.drag.edgeOrient = 'h';
+                            state.drag.edgeFixedIndex = r;
+                            state.drag.edgeValue = nextVal;
+                            hideFeedback();
+                            render2DGrids();
+                            updateLiveViewBadges();
+                        });
+
+                        edgeBtn.addEventListener('mouseenter', () => {
+                            if (!state.drag.active || state.drag.mode !== 'edge') return;
+                            if (state.drag.viewKey !== cfg.key || state.drag.edgeOrient !== 'h') return;
+                            if (state.drag.edgeFixedIndex !== r) return;
+                            if (state.studentEdges[cfg.key].h[r][c] !== state.drag.edgeValue) {
+                                state.studentEdges[cfg.key].h[r][c] = state.drag.edgeValue;
+                                hideFeedback();
+                                render2DGrids();
+                                updateLiveViewBadges();
+                            }
+                        });
+
+                        container.appendChild(edgeBtn);
+                    }
+                }
+
+                for (let r = 0; r < N; r++) {
+                    for (let c = 0; c < N - 1; c++) {
+                        const edgeBtn = document.createElement('div');
+                        const edgeVal = edgeData.v[r][c];
+                        let stateClass = edgeVal === 1 ? 'edge-solid' : (edgeVal === 2 ? 'edge-dashed' : '');
+
+                        if (validationDetails && validationDetails.edges && validationDetails.edges[cfg.key]) {
+                            const err = validationDetails.edges[cfg.key].v[r][c];
+                            if (err === 'missing') stateClass = 'edge-missing';
+                            if (err === 'extra') stateClass = 'edge-extra';
+                        }
+
+                        edgeBtn.className = `edge-btn edge-btn-v ${stateClass}`;
+                        edgeBtn.style.cssText = `${edgePointerStyle} left: ${((c + 1) / N) * 100}%; top: ${(r / N) * 100 + 1}%; height: ${(1 / N) * 100 - 2}%;`;
+                        edgeBtn.innerHTML = `<div class="edge-line"></div>`;
+
+                        edgeBtn.addEventListener('mousedown', (e) => {
+                            if (e.button !== 0 || state.tool2D !== 'edge') return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const nextVal = (state.studentEdges[cfg.key].v[r][c] + 1) % 3;
+                            state.studentEdges[cfg.key].v[r][c] = nextVal;
+                            state.drag.active = true;
+                            state.drag.mode = 'edge';
+                            state.drag.viewKey = cfg.key;
+                            state.drag.edgeOrient = 'v';
+                            state.drag.edgeFixedIndex = c;
+                            state.drag.edgeValue = nextVal;
+                            hideFeedback();
+                            render2DGrids();
+                            updateLiveViewBadges();
+                        });
+
+                        edgeBtn.addEventListener('mouseenter', () => {
+                            if (!state.drag.active || state.drag.mode !== 'edge') return;
+                            if (state.drag.viewKey !== cfg.key || state.drag.edgeOrient !== 'v') return;
+                            if (state.drag.edgeFixedIndex !== c) return;
+                            if (state.studentEdges[cfg.key].v[r][c] !== state.drag.edgeValue) {
+                                state.studentEdges[cfg.key].v[r][c] = state.drag.edgeValue;
+                                hideFeedback();
+                                render2DGrids();
+                                updateLiveViewBadges();
+                            }
+                        });
+
+                        container.appendChild(edgeBtn);
+                    }
+                }
+            });
+        }
+
+        function updateLiveViewBadges() {
+            const N = state.gridSize;
+            const expected = computeExpectedViews();
+            const keys = ['alzado', 'perfil', 'planta'];
+            const badgeIds = { alzado: 'badgeAlzado', perfil: 'badgePerfil', planta: 'badgePlanta' };
+
+            let completedViews = 0;
+
+            keys.forEach(k => {
+                let facesMatch = true;
+                let edgesMatch = true;
+                let markedFaces = 0;
+
+                for (let r = 0; r < N; r++) {
+                    for (let c = 0; c < N; c++) {
+                        if (state.studentViews[k][r][c]) markedFaces++;
+                        if (!cellsMatch2D(state.studentViews[k][r][c], expected[k][r][c])) facesMatch = false;
+                    }
+                }
+                for (let r = 0; r < N - 1; r++) {
+                    for (let c = 0; c < N; c++) {
+                        if (edgeMismatch(state.studentEdges[k].h[r][c], expected.edges[k].h[r][c], expected.ignore[k].h[r][c])) edgesMatch = false;
+                    }
+                }
+                for (let r = 0; r < N; r++) {
+                    for (let c = 0; c < N - 1; c++) {
+                        if (edgeMismatch(state.studentEdges[k].v[r][c], expected.edges[k].v[r][c], expected.ignore[k].v[r][c])) edgesMatch = false;
+                    }
+                }
+
+                const badge = document.getElementById(badgeIds[k]);
+                if (!badge) return;
+
+                if (facesMatch && edgesMatch) {
+                    completedViews++;
+                    badge.textContent = "COMPLETA ✓";
+                    badge.className = "bg-[#A3E635] border border-black px-1.5 py-0.5 font-mono-code text-[10px] font-extrabold";
+                } else if (facesMatch && !edgesMatch) {
+                    badge.textContent = "FALTAN LÍNEAS";
+                    badge.className = "bg-[#FFE600] border border-black px-1.5 py-0.5 font-mono-code text-[10px] font-extrabold";
+                } else {
+                    badge.textContent = `${markedFaces}/${N * N}`;
+                    badge.className = "bg-[#FFF9D2] border border-black px-1.5 py-0.5 font-mono-code text-[10px] font-extrabold";
+                }
+            });
+
+            const globalBadge = document.getElementById('viewsStatusBadge');
+            if (globalBadge) {
+                if (completedViews === 3) {
+                    globalBadge.textContent = "🌟 ¡3/3 CORRECTAS!";
+                    globalBadge.className = "bg-[#A3E635] brutal-border-sm px-1.5 py-0.5 font-mono-code text-[10px] font-extrabold whitespace-nowrap";
+                } else {
+                    globalBadge.textContent = `⏳ ${completedViews}/3 VISTAS`;
+                    globalBadge.className = "bg-white brutal-border-sm px-1.5 py-0.5 font-mono-code text-[10px] font-extrabold whitespace-nowrap";
+                }
+            }
+        }
+
+        // =========================================================================
+        // 7. VALIDACIÓN Y FLUJO DE NIVELES
+        // =========================================================================
+        function checkSolution() {
+            const N = state.gridSize;
+            if (!state.builderMode && !state.isTutorialPiece) {
+                state.attempts++;
+            }
+            const expected = computeExpectedViews();
+            const keys = ['alzado', 'perfil', 'planta'];
+
+            const validationDetails = {
+                faces: { alzado: {}, perfil: {}, planta: {} },
+                edges: {
+                    alzado: createEmptyEdges(N),
+                    perfil: createEmptyEdges(N),
+                    planta: createEmptyEdges(N)
+                }
+            };
+
+            let faceErrors = 0;
+            let edgeErrors = 0;
+
+            keys.forEach(key => {
+                validationDetails.faces[key] = Array.from({ length: N }, () => Array(N).fill('ok'));
+                for (let r = 0; r < N; r++) {
+                    for (let c = 0; c < N; c++) {
+                        const sVal = state.studentViews[key][r][c];
+                        const eVal = expected[key][r][c];
+                        if (!cellsMatch2D(sVal, eVal)) {
+                            if (sVal && !eVal) validationDetails.faces[key][r][c] = 'wrong-extra';
+                            else validationDetails.faces[key][r][c] = 'wrong-missing';
+                            faceErrors++;
+                        }
+                    }
+                }
+                for (let r = 0; r < N - 1; r++) {
+                    for (let c = 0; c < N; c++) {
+                        const sEdge = state.studentEdges[key].h[r][c];
+                        const eEdge = expected.edges[key].h[r][c];
+                        if (edgeMismatch(sEdge, eEdge, expected.ignore[key].h[r][c])) {
+                            validationDetails.edges[key].h[r][c] = eEdge > 0 && sEdge === 0 ? 'missing' : (eEdge === 0 && sEdge > 0 ? 'extra' : 'missing');
+                            edgeErrors++;
+                        }
+                    }
+                }
+                for (let r = 0; r < N; r++) {
+                    for (let c = 0; c < N - 1; c++) {
+                        const sEdge = state.studentEdges[key].v[r][c];
+                        const eEdge = expected.edges[key].v[r][c];
+                        if (edgeMismatch(sEdge, eEdge, expected.ignore[key].v[r][c])) {
+                            validationDetails.edges[key].v[r][c] = eEdge > 0 && sEdge === 0 ? 'missing' : (eEdge === 0 && sEdge > 0 ? 'extra' : 'missing');
+                            edgeErrors++;
+                        }
+                    }
+                }
+            });
+
+            render2DGrids(validationDetails);
+            updateLiveViewBadges();
+
+            if (faceErrors === 0 && edgeErrors === 0) {
+                if (state.builderMode || state.isTutorialPiece) {
+                    showFeedback("🎉 ¡EXCELENTE! Las vistas y aristas de esta pieza de práctica son correctas.", "bg-[#A3E635]");
+                    showToast("✅ ¡Vistas comprobadas correctamente!");
+                } else {
+                    const currentLevel = LEVELS[state.currentLevelIndex];
+                    const unlockedBefore = getUnlockedCount();
+                    if (!state.solvedLevels.has(currentLevel.id)) {
+                        state.solvedLevels.add(currentLevel.id);
+                        const xpReward = N === 2 ? 20 : (N === 3 ? 35 : 55);
+                        state.xp += xpReward;
+                    } else {
+                        state.xp += 5;
+                    }
+                    updateHeaderCounters();
+                    renderLevelButtons();
+                    updateReportPreview();
+                    saveToLocalStorage();
+                    const unlockedAfter = getUnlockedCount();
+                    if (unlockedAfter > unlockedBefore) {
+                        showFeedback(`🎉 ¡EXCELENTE! 🔓 ¡Nuevos niveles desbloqueados: N${unlockedBefore + 1}–N${unlockedAfter}!`, "bg-[#A3E635]");
+                        showToast(`🔓 ¡Desbloqueados los niveles N${unlockedBefore + 1}–N${unlockedAfter}!`);
+                    } else {
+                        showFeedback("🎉 ¡EXCELENTE! Vistas, caras y aristas (continuas y discontinuas) correctas.", "bg-[#A3E635]");
+                        showToast("🏆 ¡Reto superado! Progreso actualizado");
+                    }
+                }
+            } else if (faceErrors === 0 && edgeErrors > 0) {
+                updateReportPreview();
+                saveToLocalStorage();
+                showFeedback(`✏️ ¡Siluetas correctas! Revisa las líneas de cambio de plano (${edgeErrors} diferencias: amarillo = falta o es de otro tipo, rosa = sobra).`, "bg-[#FFE600]");
+            } else {
+                updateReportPreview();
+                saveToLocalStorage();
+                showFeedback(`⚠️ Hay ${faceErrors} fallos en caras ([×] sobran, [•] faltan) y ${edgeErrors} en líneas.`, "bg-[#FF6B8B]");
+            }
+        }
+
+        function loadTutorialExample() {
+            if (state.builderMode) exitBuilderMode();
+            state.isTutorialPiece = true;
+            state.gridSize = TUTORIAL_PIECE.size;
+            populateVoxelMapFromList(state.activeVoxels, TUTORIAL_PIECE.voxels);
+
+            const titleEl = document.getElementById('currentLevelTitle');
+            if (titleEl) titleEl.textContent = "🎓 TUTORIAL: PIEZA DE DEMOSTRACIÓN RESUELTA";
+
+            const expected = computeExpectedViews();
+            ['alzado', 'perfil', 'planta'].forEach(k => {
+                state.studentViews[k] = expected[k].map(row => row.map(v => (typeof v === 'object' && v) ? { ...v } : v));
+                state.studentEdges[k] = {
+                    h: expected.edges[k].h.map(row => [...row]),
+                    v: expected.edges[k].v.map(row => [...row])
+                };
+            });
+
+            setCameraView('iso');
+            render3DVoxels();
+            render2DGrids();
+            updateLiveViewBadges();
+            renderLevelButtons();
+            showFeedback("🎓 Pieza de Tutorial cargada y resuelta. Úsala para ver cómo funcionan las líneas continuas y discontinuas.", "bg-[#C4B5FD]");
+        }
+
+        function clearStudentGrids() {
+            const N = state.gridSize;
+            state.studentViews = {
+                alzado: createEmptyMatrix(N),
+                perfil: createEmptyMatrix(N),
+                planta: createEmptyMatrix(N)
+            };
+            state.studentEdges = {
+                alzado: createEmptyEdges(N),
+                perfil: createEmptyEdges(N),
+                planta: createEmptyEdges(N)
+            };
+            hideFeedback();
+            render2DGrids();
+            updateLiveViewBadges();
+            updateReportPreview();
+        }
+
+        // =====================================================================
+        // DESBLOQUEO POR GRUPOS: se empieza con UNLOCK_INITIAL niveles y, por cada
+        // UNLOCK_NEED niveles resueltos, se desbloquean UNLOCK_GROUP más.
+        // (Con 4 resueltos de los 5 primeros ya se abren los 5 siguientes: no hace falta
+        //  resolverlos todos para seguir avanzando.)  Se calcula siempre a partir de los
+        // niveles resueltos, así que no hace falta guardar nada más en el .json.
+        // =====================================================================
+        const UNLOCK_INITIAL = 5;
+        const UNLOCK_NEED = 4;
+        const UNLOCK_GROUP = 5;
+
+        function getSolvedCount() {
+            return Array.from(state.solvedLevels).filter(id => typeof id === 'number' && id >= 1 && id <= LEVELS.length).length;
+        }
+        function getUnlockedCount(solved = getSolvedCount()) {
+            return Math.min(LEVELS.length, UNLOCK_INITIAL + Math.floor(solved / UNLOCK_NEED) * UNLOCK_GROUP);
+        }
+        function isLevelUnlocked(levelId) {
+            return levelId <= getUnlockedCount();
+        }
+        function solvedStillNeededFor(levelId) {
+            const groups = Math.max(0, Math.ceil((levelId - UNLOCK_INITIAL) / UNLOCK_GROUP));
+            return Math.max(0, groups * UNLOCK_NEED - getSolvedCount());
+        }
+        function notifyLevelLocked(levelId) {
+            const missing = solvedStillNeededFor(levelId);
+            showToast(`🔒 Nivel ${levelId} bloqueado: resuelve ${missing} nivel${missing === 1 ? '' : 'es'} más para abrirlo`);
+        }
+
+        function loadLevel(index) {
+            if (state.builderMode) exitBuilderMode();
+            if (index < 0 || index >= LEVELS.length) return;
+            if (!isLevelUnlocked(LEVELS[index].id)) { notifyLevelLocked(LEVELS[index].id); return; }
+            state.isTutorialPiece = false;
+            state.currentLevelIndex = index;
+            const level = LEVELS[index];
+            state.gridSize = level.size || 3;
+
+            populateVoxelMapFromList(state.activeVoxels, level.voxels);
+
+            const titleEl = document.getElementById('currentLevelTitle');
+            if (titleEl) titleEl.textContent = `NIVEL ${level.id}: ${level.name.toUpperCase()}`;
+
+            setCameraView('iso');
+            clearStudentGrids();
+            render3DVoxels();
+            renderLevelButtons();
+            updateReportPreview();
+        }
+
+        function nextLevel() {
+            if (state.builderMode) exitBuilderMode();
+            stepLevel(1);
+        }
+
+        // Avanza o retrocede al siguiente nivel DESBLOQUEADO (en círculo)
+        function stepLevel(dir) {
+            const n = LEVELS.length;
+            for (let i = 1; i <= n; i++) {
+                const idx = (((state.currentLevelIndex + dir * i) % n) + n) % n;
+                if (isLevelUnlocked(LEVELS[idx].id)) { loadLevel(idx); return; }
+            }
+        }
+
+        function generateRandomPiece() {
+            state.isTutorialPiece = false;
+            const N = state.builderMode ? state.builderGridSize : 3;
+            state.gridSize = N;
+
+            const targetMap = state.builderMode ? state.builderVoxels : state.activeVoxels;
+            targetMap.clear();
+
+            // Generamos alturas monótonas crecientes hacia X = N-1 (derecha) y hacia Z = 0 (fondo)
+            // Así siempre se ven escalonadas desde la izquierda (X-) y desde el frente (Z+) sin taparse ni crear aristas ocultas confusas.
+            const heights = Array.from({ length: N }, () => Array(N).fill(1));
+            for (let x = 0; x < N; x++) {
+                for (let z = N - 1; z >= 0; z--) {
+                    const minFromLeft = x > 0 ? heights[x - 1][z] : 1;
+                    const minFromFront = z < N - 1 ? heights[x][z + 1] : 1;
+                    const minAllowed = Math.max(minFromLeft, minFromFront);
+                    const maxAllowed = Math.min(N, minAllowed + (Math.random() < 0.65 ? 1 : 0));
+                    heights[x][z] = maxAllowed;
+                }
+            }
+            heights[N - 1][0] = N;
+            heights[0][N - 1] = 1;
+
+            for (let x = 0; x < N; x++) {
+                for (let z = 0; z < N; z++) {
+                    const h = heights[x][z];
+                    for (let y = 0; y < h; y++) {
+                        targetMap.set(`${x},${y},${z}`, { type: 'cube', span: 1, index: 0 });
+                    }
+                }
+            }
+
+            if (state.builderMode) {
+                state.activeVoxels = new Map(state.builderVoxels);
+                renderBuilderLayers();
+                updateBuilderJsonExport();
+            } else {
+                const titleEl = document.getElementById('currentLevelTitle');
+                if (titleEl) titleEl.textContent = "🎲 RETO ALEATORIO GENERADO (3×3)";
+            }
+
+            setCameraView('iso');
+            clearStudentGrids();
+            render3DVoxels();
+            renderLevelButtons();
+            showToast("🎲 ¡Nueva pieza aleatoria generada!");
+        }
+
+        function renderLevelButtons() {
+            const container = document.getElementById('levelButtonsContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const info = document.getElementById('unlockInfo');
+            if (info) {
+                const solved = getSolvedCount();
+                const unlocked = getUnlockedCount(solved);
+                if (unlocked >= LEVELS.length) {
+                    info.textContent = `🔓 ¡Todos los niveles desbloqueados! (${solved} resueltos)`;
+                } else {
+                    const toNext = UNLOCK_NEED - (solved % UNLOCK_NEED);
+                    info.textContent = `🔓 ${unlocked} de ${LEVELS.length} niveles abiertos • resuelve ${toNext} más (de los abiertos) y se desbloquean ${Math.min(UNLOCK_GROUP, LEVELS.length - unlocked)} nuevos`;
+                }
+            }
+
+            LEVELS.forEach((lvl, idx) => {
+                const isCurrent = !state.isTutorialPiece && !state.builderMode && idx === state.currentLevelIndex;
+                const isSolved = state.solvedLevels.has(lvl.id);
+                const sz = lvl.size || 3;
+
+                let sizeBadgeClass = 'bg-[#00F0FF]/40';
+                let idleBg = 'bg-[#F6F3EB] hover:bg-white';
+                if (sz === 2) {
+                    sizeBadgeClass = 'bg-[#A3E635]/50';
+                    idleBg = 'bg-[#FFF9D2] hover:bg-white';
+                } else if (sz === 4) {
+                    sizeBadgeClass = 'bg-[#C4B5FD]/70';
+                    idleBg = 'bg-[#C4B5FD]/25 hover:bg-white';
+                }
+
+                const isLocked = !isLevelUnlocked(lvl.id);
+                const btn = document.createElement('button');
+                btn.className = `brutal-btn brutal-border-sm p-1.5 font-mono-code text-xs font-extrabold flex flex-col items-center justify-center gap-0.5 ${
+                    isLocked ? 'bg-[#E5E7EB] text-black/45 cursor-not-allowed' :
+                    isCurrent ? 'bg-[#FFE600] brutal-shadow-sm ring-2 ring-black' :
+                    isSolved ? 'bg-[#A3E635]' : idleBg
+                }`;
+                btn.innerHTML = `
+                    <span class="text-[11px]">${isLocked ? '🔒 ' : (isSolved ? '✓ ' : '')}N${lvl.id}</span>
+                    <span class="text-[9px] font-bold px-1 border border-black ${isLocked ? 'bg-white/60' : sizeBadgeClass}">${sz}×${sz}</span>
+                `;
+                if (isLocked) btn.setAttribute('aria-disabled', 'true');
+                btn.onclick = () => {
+                    if (isLocked) { notifyLevelLocked(lvl.id); return; }
+                    loadLevel(idx);
+                    closeLevelsPopover();
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        // =========================================================================
+        // 8. MODO CONSTRUCTOR INDEPENDIENTE (2×2 A 6×6 + RAMPAS + JSON)
+        // =========================================================================
+        function initDefaultBuilderPiece() {
+            if (state.builderVoxels.size > 0) return;
+            const initial = [
+                [0,0,0,'cube'],[1,0,0,'cube'],[2,0,0,'cube'],
+                [0,0,1,'cube'],[1,0,1,'cube'],[2,0,1,'cube'],
+                [0,1,0,'cube'],[1,1,0,'ramp_xp',2,0],[2,1,0,'ramp_xp',2,1],
+                [0,1,1,'ramp_zp',1,0]
+            ];
+            populateVoxelMapFromList(state.builderVoxels, initial);
+        }
+
+        function enterBuilderMode() {
+            initDefaultBuilderPiece();
+            state.builderMode = true;
+            document.body.classList.add('builder-on');
+            state.isTutorialPiece = false;
+            state.gridSize = state.builderGridSize;
+            state.activeVoxels = new Map(state.builderVoxels);
+
+            const levelsSec = document.getElementById('levelsSection');
+            const studioBanner = document.getElementById('builderStudioBanner');
+            const builderPanel = document.getElementById('builderPanel');
+            if (levelsSec) levelsSec.classList.add('hidden');
+            if (studioBanner) studioBanner.classList.remove('hidden');
+            if (builderPanel) builderPanel.classList.remove('hidden');
+
+            updateBuilderSizeButtonsUI();
+            updateBuilderBrushButtonsUI();
+            clearStudentGrids();
+            renderBuilderLayers();
+            render3DVoxels();
+            updateBuilderJsonExport();
+            setCameraView('iso');
+            showToast("🛠️ Modo Constructor activado");
+        }
+
+        function exitBuilderMode() {
+            state.builderMode = false;
+            document.body.classList.remove('builder-on');
+            const levelsSec = document.getElementById('levelsSection');
+            const studioBanner = document.getElementById('builderStudioBanner');
+            const builderPanel = document.getElementById('builderPanel');
+            if (levelsSec) levelsSec.classList.remove('hidden');
+            if (studioBanner) studioBanner.classList.add('hidden');
+            if (builderPanel) builderPanel.classList.add('hidden');
+            loadLevel(state.currentLevelIndex);
+        }
+
+        function setBuilderGridSize(newSize) {
+            state.builderGridSize = newSize;
+            state.gridSize = newSize;
+            for (const key of Array.from(state.builderVoxels.keys())) {
+                const [x, y, z] = key.split(',').map(Number);
+                if (x >= newSize || y >= newSize || z >= newSize) {
+                    state.builderVoxels.delete(key);
+                }
+            }
+            if (state.builderVoxels.size === 0) {
+                state.builderVoxels.set('0,0,0', { type: 'cube', span: 1, index: 0 });
+            }
+            state.activeVoxels = new Map(state.builderVoxels);
+            updateBuilderSizeButtonsUI();
+            clearStudentGrids();
+            renderBuilderLayers();
+            render3DVoxels();
+            updateBuilderJsonExport();
+        }
+
+        function updateBuilderSizeButtonsUI() {
+            document.querySelectorAll('.builder-size-btn').forEach(btn => {
+                const sz = parseInt(btn.getAttribute('data-size'), 10);
+                if (sz === state.builderGridSize) {
+                    btn.className = "builder-size-btn brutal-btn bg-[#FFE600] brutal-border-sm px-2 py-0.5 font-mono-code text-xs font-black ring-2 ring-black";
+                } else {
+                    btn.className = "builder-size-btn brutal-btn bg-white brutal-border-sm px-2 py-0.5 font-mono-code text-xs font-black";
+                }
+            });
+        }
+
+        function setBuilderBrush(brushType) {
+            state.builderBrush = brushType;
+            updateBuilderBrushButtonsUI();
+        }
+
+        function updateBuilderBrushButtonsUI() {
+            const ids = ['cube', 'ramp', 'erase'];
+            ids.forEach(b => {
+                const el = document.getElementById(`brush_${b}`);
+                if (!el) return;
+                if (b === state.builderBrush) {
+                    el.className = "builder-brush-btn brutal-btn bg-[#FFE600] brutal-border-sm py-2 px-2 font-mono-code text-xs font-black ring-2 ring-black";
+                } else {
+                    el.className = "builder-brush-btn brutal-btn bg-white brutal-border-sm py-2 px-2 font-mono-code text-xs font-black";
+                }
+            });
+            const helpEl = document.getElementById('builderBrushHelp');
+            if (helpEl) {
+                if (state.builderBrush === 'cube') {
+                    helpEl.textContent = "🧊 Modo Cubos: Mantén pulsado y arrastra por la capa para añadir o quitar cubos macizos.";
+                } else if (state.builderBrush === 'ramp') {
+                    helpEl.textContent = "📐 Modo Rampa: Haz clic en un lateral de una casilla y arrastra hacia el lado al que desciende.";
+                } else {
+                    helpEl.textContent = "🗑️ Modo Borrar: Mantén pulsado y arrastra para eliminar bloques o rampas.";
+                }
+            }
+        }
+
+        function applyBuilderRampSegment(y, x1, z1, startSide, x2, z2, endSide) {
+            const N = state.builderGridSize;
+            const ensureSupportBelow = (cx, cy, cz) => {
+                for (let by = 0; by < cy; by++) {
+                    if (!state.builderVoxels.has(`${cx},${by},${cz}`)) {
+                        state.builderVoxels.set(`${cx},${by},${cz}`, { type: 'cube', span: 1, index: 0 });
+                    }
+                }
+            };
+
+            if (x1 === x2 && z1 === z2) {
+                let rampType = 'ramp_xp';
+                if (startSide === 'left' || endSide === 'right') rampType = 'ramp_xp';
+                if (startSide === 'right' || endSide === 'left') rampType = 'ramp_xn';
+                if (startSide === 'top' || endSide === 'bottom') rampType = 'ramp_zp';
+                if (startSide === 'bottom' || endSide === 'top') rampType = 'ramp_zn';
+                ensureSupportBelow(x1, y, z1);
+                state.builderVoxels.set(`${x1},${y},${z1}`, { type: rampType, span: 1, index: 0 });
+            } else if (Math.abs(x2 - x1) >= Math.abs(z2 - z1)) {
+                const span = Math.abs(x2 - x1) + 1;
+                const rampType = x2 > x1 ? 'ramp_xp' : 'ramp_xn';
+                const step = x2 > x1 ? 1 : -1;
+                for (let i = 0; i < span; i++) {
+                    const cx = x1 + i * step;
+                    if (cx >= 0 && cx < N) {
+                        ensureSupportBelow(cx, y, z1);
+                        state.builderVoxels.set(`${cx},${y},${z1}`, { type: rampType, span, index: i });
+                    }
+                }
+            } else {
+                const span = Math.abs(z2 - z1) + 1;
+                const rampType = z2 > z1 ? 'ramp_zp' : 'ramp_zn';
+                const step = z2 > z1 ? 1 : -1;
+                for (let i = 0; i < span; i++) {
+                    const cz = z1 + i * step;
+                    if (cz >= 0 && cz < N) {
+                        ensureSupportBelow(x1, y, cz);
+                        state.builderVoxels.set(`${x1},${y},${cz}`, { type: rampType, span, index: i });
+                    }
+                }
+            }
+            state.activeVoxels = new Map(state.builderVoxels);
+            render3DVoxels();
+            updateLiveViewBadges();
+            updateBuilderJsonExport();
+        }
+
+        function renderBuilderLayers() {
+            const container = document.getElementById('builderLayersContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const N = state.builderGridSize;
+            const symbolMap = {
+                'cube': '■',
+                'ramp_zp': '▼',
+                'ramp_zn': '▲',
+                'ramp_xn': '◀',
+                'ramp_xp': '▶'
+            };
+
+            for (let y = 0; y < N; y++) {
+                const layerBox = document.createElement('div');
+                layerBox.className = 'bg-white brutal-border-sm p-2 space-y-1';
+                layerBox.innerHTML = `<div class="font-mono-code text-[10px] font-extrabold text-center uppercase bg-[#FFE600] border border-black py-0.5">CAPA Y=${y + 1}</div>`;
+
+                const grid = document.createElement('div');
+                grid.className = 'grid gap-1';
+                grid.style.gridTemplateColumns = `repeat(${N}, minmax(0, 1fr))`;
+
+                for (let z = 0; z < N; z++) {
+                    for (let x = 0; x < N; x++) {
+                        const key = `${x},${y},${z}`;
+                        const vObj = getVoxelObj(state.builderVoxels, x, y, z);
+
+                        const cell = document.createElement('button');
+                        const isRamp = vObj && vObj.type !== 'cube';
+                        cell.className = `h-7 brutal-border-sm font-mono-code text-[10px] font-black flex items-center justify-center ${
+                            !vObj ? 'bg-[#F6F3EB]' : (isRamp ? 'bg-[#00F0FF]' : 'bg-[#A3E635]')
+                        }`;
+                        if (vObj) {
+                            const sym = symbolMap[vObj.type] || '■';
+                            cell.textContent = (vObj.span && vObj.span > 1) ? `${sym}${vObj.index + 1}` : sym;
+                        }
+
+                        cell.addEventListener('mousedown', (e) => {
+                            if (e.button !== 0) return;
+                            e.preventDefault();
+                            state.drag.active = true;
+                            state.drag.builderLayerY = y;
+
+                            if (state.builderBrush === 'ramp') {
+                                const side = detectCellSideZone(e, cell);
+                                state.drag.mode = 'builder_ramp';
+                                state.drag.builderRampStartX = x;
+                                state.drag.builderRampStartZ = z;
+                                state.drag.builderRampStartSide = side;
+                                applyBuilderRampSegment(y, x, z, side, x, z, side);
+                                renderBuilderLayers();
+                                return;
+                            }
+
+                            state.drag.mode = 'builder_cube';
+                            if (state.builderBrush === 'erase') {
+                                state.drag.builderAction = false;
+                                state.builderVoxels.delete(key);
+                            } else {
+                                const exists = state.builderVoxels.has(key);
+                                state.drag.builderAction = !exists;
+                                if (state.drag.builderAction) {
+                                    state.builderVoxels.set(key, { type: 'cube', span: 1, index: 0 });
+                                } else {
+                                    state.builderVoxels.delete(key);
+                                }
+                            }
+                            if (state.builderVoxels.size === 0) {
+                                state.builderVoxels.set('0,0,0', { type: 'cube', span: 1, index: 0 });
+                            }
+                            state.activeVoxels = new Map(state.builderVoxels);
+                            renderBuilderLayers();
+                            render3DVoxels();
+                            updateLiveViewBadges();
+                            updateBuilderJsonExport();
+                        });
+
+                        cell.addEventListener('mouseenter', (e) => {
+                            if (!state.drag.active || state.drag.builderLayerY !== y) return;
+                            if (state.drag.mode === 'builder_cube') {
+                                if (state.drag.builderAction) {
+                                    state.builderVoxels.set(key, { type: 'cube', span: 1, index: 0 });
+                                } else if (state.builderVoxels.size > 1) {
+                                    state.builderVoxels.delete(key);
+                                }
+                                state.activeVoxels = new Map(state.builderVoxels);
+                                renderBuilderLayers();
+                                render3DVoxels();
+                                updateLiveViewBadges();
+                                updateBuilderJsonExport();
+                            } else if (state.drag.mode === 'builder_ramp') {
+                                const endSide = detectCellSideZone(e, cell);
+                                applyBuilderRampSegment(
+                                    y,
+                                    state.drag.builderRampStartX,
+                                    state.drag.builderRampStartZ,
+                                    state.drag.builderRampStartSide,
+                                    x,
+                                    z,
+                                    endSide
+                                );
+                                renderBuilderLayers();
+                            }
+                        });
+
+                        grid.appendChild(cell);
+                    }
+                }
+                layerBox.appendChild(grid);
+                container.appendChild(layerBox);
+            }
+        }
+
+        function fillBuilderSolutionTo2D() {
+            const expected = computeExpectedViews();
+            ['alzado', 'perfil', 'planta'].forEach(k => {
+                state.studentViews[k] = expected[k].map(row => row.map(v => (typeof v === 'object' && v) ? { ...v } : v));
+                state.studentEdges[k] = {
+                    h: expected.edges[k].h.map(row => [...row]),
+                    v: expected.edges[k].v.map(row => [...row])
+                };
+            });
+            render2DGrids();
+            updateLiveViewBadges();
+            showToast("👁️ Solución 2D dibujada en el cuaderno");
+        }
+
+        function clearAllVoxels() {
+            state.builderVoxels.clear();
+            state.builderVoxels.set('0,0,0', { type: 'cube', span: 1, index: 0 });
+            state.activeVoxels = new Map(state.builderVoxels);
+            renderBuilderLayers();
+            render3DVoxels();
+            updateLiveViewBadges();
+            updateBuilderJsonExport();
+        }
+
+        function updateBuilderJsonExport() {
+            const out = document.getElementById('builderJsonOutput');
+            const titleIn = document.getElementById('builderCustomTitle');
+            if (!out) return;
+
+            const voxelsArr = [];
+            state.builderVoxels.forEach((rawVal, key) => {
+                const [x, y, z] = key.split(',').map(Number);
+                const vObj = normalizeVoxelData(rawVal);
+                if (vObj.type === 'cube') {
+                    voxelsArr.push([x, y, z]);
+                } else if ((vObj.span || 1) > 1) {
+                    voxelsArr.push([x, y, z, vObj.type, vObj.span, vObj.index || 0]);
+                } else {
+                    voxelsArr.push([x, y, z, vObj.type]);
+                }
+            });
+
+            const levelObj = {
+                id: LEVELS.length + 1,
+                name: titleIn ? titleIn.value : "Nuevo Nivel",
+                size: state.builderGridSize,
+                voxels: voxelsArr
+            };
+            out.value = JSON.stringify(levelObj);
+        }
+
+        function copyBuilderLevelJSON() {
+            updateBuilderJsonExport();
+            const out = document.getElementById('builderJsonOutput');
+            if (!out) return;
+            copyTextSafe(out.value, "📦 ¡Código JSON del nivel copiado!");
+        }
+
+        function toggleImportJsonBox() {
+            const box = document.getElementById('importJsonBox');
+            if (box) box.classList.toggle('hidden');
+        }
+
+        function importBuilderLevelJSON() {
+            const input = document.getElementById('builderJsonInput');
+            if (!input || !input.value.trim()) return;
+            try {
+                const parsed = JSON.parse(input.value.trim());
+                if (!parsed.voxels || !Array.isArray(parsed.voxels)) {
+                    showToast("❌ El JSON no contiene una lista 'voxels' válida");
+                    return;
+                }
+                const sz = parsed.size || 3;
+                state.builderGridSize = Math.min(6, Math.max(2, sz));
+                state.gridSize = state.builderGridSize;
+                populateVoxelMapFromList(state.builderVoxels, parsed.voxels);
+                state.activeVoxels = new Map(state.builderVoxels);
+
+                if (parsed.name) {
+                    const titleIn = document.getElementById('builderCustomTitle');
+                    if (titleIn) titleIn.value = parsed.name;
+                }
+                updateBuilderSizeButtonsUI();
+                clearStudentGrids();
+                renderBuilderLayers();
+                render3DVoxels();
+                updateBuilderJsonExport();
+                showToast("✅ Nivel cargado en el Constructor");
+            } catch (e) {
+                showToast("❌ Error al leer el código JSON");
+            }
+        }
+
+        // =========================================================================
+        // 9. CONTADORES, NOTIFICACIONES Y VISTA PREVIA DEL ARCHIVO .JSON
+        // =========================================================================
+        function updateHeaderCounters() {
+            const xpEl = document.getElementById('xpCounter');
+            const solvedEl = document.getElementById('solvedCounter');
+            const validSolvedCount = Array.from(state.solvedLevels).filter(
+                id => typeof id === 'number' && id >= 1 && id <= LEVELS.length
+            ).length;
+            if (xpEl) xpEl.textContent = state.xp;
+            if (solvedEl) solvedEl.textContent = `${validSolvedCount} / ${LEVELS.length}`;
+        }
+
+        function showFeedback(message, bgClass) {
+            const banner = document.getElementById('feedbackBanner');
+            const text = document.getElementById('feedbackText');
+            if (!banner || !text) return;
+            banner.className = `brutal-border p-3 font-mono-code text-xs sm:text-sm font-bold flex items-center justify-between gap-3 ${bgClass}`;
+            text.textContent = message;
+            banner.classList.remove('hidden');
+        }
+
+        function hideFeedback() {
+            const banner = document.getElementById('feedbackBanner');
+            if (banner) banner.classList.add('hidden');
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toastNotification');
+            const text = document.getElementById('toastText');
+            if (!toast || !text) return;
+            text.textContent = msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3200);
+        }
+
+        function updateReportPreview() {
+            const pre = document.getElementById('reportPreview');
+            if (pre) {
+                pre.textContent = JSON.stringify(buildProgressJSONObject(), null, 2);
+            }
+        }
+
+        function copyTextSafe(text, toastMsg) {
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast(toastMsg);
+                }).catch(() => fallbackCopyText(text, toastMsg));
+            } else {
+                fallbackCopyText(text, toastMsg);
+            }
+        }
+
+        function fallbackCopyText(text, toastMsg) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+                document.execCommand('copy');
+                showToast(toastMsg || "✅ ¡Copiado al portapapeles!");
+            } catch (err) {
+                showToast("⚠️ No se pudo copiar automáticamente.");
+            }
+            document.body.removeChild(ta);
+        }
+
+        // =========================================================================
+        // 9b. NAVEGACIÓN COMPACTA: nivel anterior, mapa desplegable y modal de reglas
+        // =========================================================================
+        function prevLevel() {
+            if (state.builderMode) exitBuilderMode();
+            stepLevel(-1);
+        }
+        function toggleLevelsPopover() {
+            const pop = document.getElementById('levelsPopover');
+            if (pop) pop.classList.toggle('hidden');
+        }
+        function closeLevelsPopover() {
+            const pop = document.getElementById('levelsPopover');
+            if (pop) pop.classList.add('hidden');
+        }
+        function openGuideModal() {
+            const m = document.getElementById('quickGuideModal');
+            if (m) m.classList.remove('hidden');
+        }
+        function closeGuideModal() {
+            const m = document.getElementById('quickGuideModal');
+            if (m) m.classList.add('hidden');
+        }
+        document.addEventListener('click', (e) => {
+            const pop = document.getElementById('levelsPopover');
+            if (!pop || pop.classList.contains('hidden')) return;
+            const bar = document.getElementById('topBar');
+            if (bar && !bar.contains(e.target)) closeLevelsPopover();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') { closeLevelsPopover(); closeGuideModal(); }
+        });
+
+        // =========================================================================
+        // 10. INICIALIZACIÓN AL CARGAR LA PÁGINA
+        // =========================================================================
+        window.onload = function () {
+            initThreeJS();
+            restoreFromLocalStorage();
+            loadLevel(state.currentLevelIndex);
+            updateHeaderCounters();
+            checkWelcomeGateOnStart();
+        };
+    </script>
+</body>
+</html>
